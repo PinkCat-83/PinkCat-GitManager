@@ -3,16 +3,20 @@
 > Internal reference for development, debugging, and AI-assisted work.  
 > → [Presentation README](./README.md)
 
+> **Scope:** single-user tool for organizing personal projects and launching/updating them quickly from one app. It only covers the basic Git operations (push, pull, status, log, init) — it is not a full Git client and is not built for multi-user collaboration workflows.
+
 ---
 
 ## 🤖 AI Instructions
 
 - Wait for the author to specify what needs to be done before proceeding.
 - Ask for the relevant files before making any modifications.
-- Git operations are isolated in `git_operations.py` — keep them there. Do not add Git logic to `app.py`.
-- Project persistence is handled exclusively by `project_manager.py` — do not add state management elsewhere.
-- The active JSON path is stored in `%APPDATA%\GitManager\config.json` via `project_manager.py`. Do not hardcode JSON paths anywhere.
+- Git operations are isolated in `src/git_operations.py` — keep them there. Do not add Git logic anywhere in `gui/`.
+- Project persistence is handled exclusively by `src/project_manager.py` — do not add state management elsewhere.
+- The active JSON path is stored in `%APPDATA%\GitManager\config.json` via `src/project_manager.py`. Do not hardcode JSON paths anywhere.
 - The app detects and reports merge conflicts (see §7) but must never attempt to resolve them (no auto-merge strategies, no diff/picker UI). Only "abort" or "let the user resolve manually" are valid actions.
+- Keep the scope in mind (see disclaimer above) — this is deliberately a lightweight, single-user tool. Don't add multi-user/collaboration features (conflict resolution UI, branch management, PR review, etc.) unless explicitly requested.
+- The `gui/` package is split by responsibility (see §1–§2). Keep new dialogs in `dialogs.py`, new detail windows in `windows.py`, and don't grow `app.py` back into a monolith — it should stay limited to `GitManagerApp` (layout + callback wiring).
 
 ---
 
@@ -20,14 +24,28 @@
 
 ```
 GitManager/
-├── app.py                  # Main GUI (CustomTkinter)
-├── git_operations.py       # All Git logic: fetch, merge, push, status, log
-├── project_manager.py      # JSON read/write for the project list + active JSON config
-├── data/
-│   └── projects.json       # Default project list (can be overridden per machine)
-├── ejecutar.bat            # Launch script
-└── instalar_y_ejecutar.bat # First-run: install dependencies + launch
+├── GitManager.pyw           # Entry point — launched directly (.pyw = no console window)
+├── gui/
+│   ├── app.py                 # GitManagerApp — main window, layout, callback wiring
+│   ├── theme.py                # Color palette (C), fonts (FONT_*), format/status helpers
+│   ├── base.py                 # BaseDialog — shared base class for every dialog/window
+│   ├── dialogs.py               # Action dialogs: Output, Commit, MergeConflict, InitRepo,
+│   │                            #   FirstRun, Launcher, Purge
+│   ├── project_card.py           # ProjectCard widget
+│   └── windows.py                # Detail windows: Log, GhostFiles, Changes, Gitignore
+├── src/
+│   ├── git_operations.py     # All Git logic: init, fetch, merge, push, status, log
+│   └── project_manager.py    # JSON read/write for the project list + active JSON config
+├── ico/
+│   ├── PinkCat-GuitManager.ico
+│   └── PinkCat-GuitManager.png
+├── README.md
+└── README_TECH.md
 ```
+
+> `gui/app.py` used to contain the entire UI (~2200 lines: every dialog, the project card, and the detail windows). It's now split by responsibility across the six files above — `app.py` itself only holds `GitManagerApp` (window layout + callback wiring). `gui/app.py` defensively inserts the project root into `sys.path` at import time (`if _ROOT not in sys.path: sys.path.insert(0, _ROOT)`), so `from gui.xxx import ...` and `from src import ...` resolve correctly regardless of exactly how `GitManager.pyw` launches this module.
+>
+> The `data/projects.json` folder and the `.bat` launch scripts from earlier versions no longer exist. Launching is now done directly via `GitManager.pyw`.
 
 ---
 
@@ -35,17 +53,25 @@ GitManager/
 
 | File | Responsibility |
 |---|---|
-| `app.py` | CustomTkinter GUI — project cards, buttons, status display |
-| `git_operations.py` | All Git commands: `add -A`, `commit`, `push`, `fetch`, `merge`, `status`, `log` |
-| `project_manager.py` | Load and save the active projects JSON; manage which JSON is active via `%APPDATA%` |
+| `GitManager.pyw` | Entry point — launches the app with no console window |
+| `gui/app.py` | `GitManagerApp` — header, project list, callback wiring between UI and `src/` |
+| `gui/theme.py` | Color palette `C`, fonts (`FONT_*`), and the `_fmt_date` / `_status_color` / `_dot_color` / `_status_label` helpers |
+| `gui/base.py` | `BaseDialog` — focus-grabbing base class every dialog/window inherits from |
+| `gui/dialogs.py` | `OutputWindow`, `CommitDialog`, `MergeConflictDialog`, `InitRepoDialog`, `FirstRunDialog`, `LauncherDialog`, `PurgeDialog` |
+| `gui/project_card.py` | `ProjectCard` — the per-project card widget (header, launcher button, collapsible body, action buttons) |
+| `gui/windows.py` | `LogWindow`, `GhostFilesWindow`, `ChangesWindow`, `GitignoreWindow` — detail/data-viewer windows |
+| `src/git_operations.py` | All Git commands: `init`, `add -A`, `commit`, `push`, `fetch`, `merge`, `status`, `log` |
+| `src/project_manager.py` | Load and save the active projects JSON; manage which JSON is active via `%APPDATA%` |
 
 ---
 
 ## 3. Data Format (`projects.json`)
 
-The active JSON can be any file on disk — the path is stored in `%APPDATA%\GitManager\config.json`. If no override is configured, the app falls back to `data/projects.json`.
+The active JSON can be any file on disk, named however the user likes — the path is stored in `%APPDATA%\GitManager\config.json`.
 
 This allows using different project lists per machine or per context, by selecting a JSON from the `📁` button in the header.
+
+There is **no automatic default location**. This is intentional (see §9, First-Run Setup): the user must explicitly pick or create the file the first time the app runs, since a common use case is pointing it at a folder synced with Google Drive/Dropbox/etc. so the list travels between computers — something the app can't guess on its own.
 
 ```json
 {
@@ -67,6 +93,8 @@ This allows using different project lists per machine or per context, by selecti
 `launcher_exe` and `launcher_icon` are `null` until configured by the user.  
 Removing a project from the list does not affect the repository files in any way.
 
+Writes to `projects.json` are atomic (`project_manager._save_raw`): the new content is written to a `.tmp` file in the same folder, then moved into place with `os.replace()`. This matters specifically because the file may live in a cloud-synced folder (Google Drive, Dropbox...) — a sync client should never observe a half-written file.
+
 ---
 
 ## 4. System Config (`%APPDATA%\GitManager\config.json`)
@@ -80,7 +108,7 @@ Created automatically on first run. Independent of where the app is installed.
 }
 ```
 
-If `active_projects_file` is absent or invalid, the app uses `data/projects.json` as default.
+If `active_projects_file` is absent or invalid, `project_manager.get_active_json_path()` returns `""` (`is_configured()` returns `False`) — by design, there is no fallback file. See §9.
 
 ---
 
@@ -124,7 +152,7 @@ Each project card shows a launcher button in the header (between the status dot 
 
 The app **never resolves merge conflicts automatically**. It only detects when a Pull left one unresolved and gives the user two safe exits.
 
-**Detection (`git_operations.py`):**
+**Detection (`src/git_operations.py`):**
 
 | Function | Purpose |
 |---|---|
@@ -134,7 +162,7 @@ The app **never resolves merge conflicts automatically**. It only detects when a
 
 `do_merge()` itself checks `is_merging()` after a failed merge and, if a real conflict is in progress, returns the list of conflicted files instead of Git's raw stderr.
 
-**Flow in `app.py`:**
+**Flow in `gui/app.py`:**
 
 1. `ProjectCard.refresh_status()` checks `is_merging()` before running the normal status worker. If true, the card shows a red dot and "⚠ Conflicto de merge sin resolver" — visible without the user doing anything.
 2. `_do_pull()` and `_do_push()` both check `is_merging()` first. If a conflict is already open, they call `_warn_merge_conflict()` instead of running the Git command.
@@ -151,7 +179,7 @@ No conflict-resolution UI (diff view, "ours/theirs" picker, etc.) exists or is p
 
 If a project's folder has no `.git` directory, the card shows an **"⚡ Inicializar repositorio"** button instead of Push/Pull.
 
-**`git_operations.py`:**
+**`src/git_operations.py`:**
 
 | Function | Purpose |
 |---|---|
@@ -159,7 +187,7 @@ If a project's folder has no `.git` directory, the card shows an **"⚡ Iniciali
 | `add_remote(path, url, name="origin")` | Adds the remote, or `set-url` if it already exists |
 | `init_repo_with_remote(path, remote_url="")` | Runs `init_repo`, then `add_remote` only if a URL was given |
 
-**Flow in `app.py`:**
+**Flow in `gui/app.py`:**
 
 1. `_do_init()` opens `InitRepoDialog`, asking for a remote URL (optional — empty is valid, leaves the repo local-only).
 2. On confirm, `init_repo_with_remote()` runs in a background thread.
@@ -169,6 +197,27 @@ No first commit is made automatically — the user still triggers that via the n
 
 ---
 
-## 9. Pending Tasks
+## 9. First-Run Setup
+
+There is no automatic default `projects.json` location (see §3–§4) — this is a deliberate design choice, not a gap. The user must explicitly configure it, because the intended use case (a folder synced with Google Drive/Dropbox/etc. so the list travels between computers) is something the app has no way to guess.
+
+**`gui/dialogs.py` — `FirstRunDialog`:**
+
+A `BaseDialog` with two explicit choices (no "cancel to get the other option" semantics):
+- **"📂 Ya tengo un archivo de proyectos"** → open an existing JSON.
+- **"✚ Crear uno nuevo"** → choose name + location for a new one (any filename works, `projects.json` is only the suggested default).
+- **"Salir de Git Manager"** → confirms, then quits.
+
+**Flow in `gui/app.py` — `GitManagerApp._first_run_setup()`:**
+
+1. Called from `__init__` only when `pm.is_configured()` is `False`, *before* `_build_ui()` / `_load_projects()`.
+2. Loops showing `FirstRunDialog` (via `self.wait_window(dialog)`) until `pm.is_configured()` becomes `True`. Canceling a file picker, or answering "No" to quit, just re-shows the same dialog — no dead ends.
+3. `__init__` wraps `_build_ui()` / `_load_projects()` in a `try/except` that shows the error in a `messagebox` (with traceback) instead of crashing silently — added after an early version crashed with no visible error message during this flow.
+
+⚠ Do not call `self.withdraw()` / `self.deiconify()` around this flow — an earlier version did, to hide the main window during setup, and it caused CustomTkinter to crash the app right after configuring (root cause not fully diagnosed, but reproducible). The window staying visible-but-empty behind the dialogs during setup is expected and harmless.
+
+---
+
+## 10. Pending Tasks
 
 - [ ] None currently tracked

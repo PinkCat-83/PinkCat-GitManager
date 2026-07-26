@@ -10,26 +10,11 @@ import json
 import os
 from datetime import datetime
 
-"""
-project_manager.py
-Gestión del JSON de proyectos: carga, guardado, añadir, eliminar.
-
-La ruta del JSON activo es de configuración MANUAL por parte del usuario
-(por ejemplo, una carpeta sincronizada con Google Drive, Dropbox, etc.,
-para que la lista de proyectos viaje entre varios ordenadores).
-No existe una ruta por defecto automática: si no se ha configurado,
-la app debe pedir al usuario que elija dónde vivirá el archivo antes
-de poder cargar o guardar nada (ver GitManagerApp._first_run_setup en app.py).
-"""
-
-import json
-import os
-from datetime import datetime
+_BASE_DIR          = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_DEFAULT_DATA_FILE = os.path.join(_BASE_DIR, "data", "projects.json")
 
 # Configuración del sistema: %APPDATA%\GitManager\config.json
 # Existe por usuario en cualquier Windows, independiente de dónde esté la app.
-# Esto SÍ es automático — solo guarda un puntero a dónde está el projects.json real,
-# no el contenido en sí.
 _APPDATA_DIR = os.path.join(
     os.getenv("APPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Roaming"),
     "GitManager"
@@ -57,20 +42,12 @@ def _save_app_config(cfg: dict) -> None:
 
 
 def get_active_json_path() -> str:
-    """
-    Devuelve la ruta del JSON de proyectos actualmente activo,
-    o "" si el usuario todavía no ha elegido ninguna.
-    """
+    """Devuelve la ruta del JSON de proyectos actualmente activo."""
     cfg = _load_app_config()
     path = cfg.get("active_projects_file", "")
     if path and os.path.isabs(path):
         return path
-    return ""
-
-
-def is_configured() -> bool:
-    """True si ya hay una ruta de projects.json elegida por el usuario."""
-    return bool(get_active_json_path())
+    return _DEFAULT_DATA_FILE
 
 
 def set_active_json_path(path: str) -> None:
@@ -82,20 +59,8 @@ def set_active_json_path(path: str) -> None:
 
 # ─── Lectura / escritura del JSON de proyectos ────────────────────────────────
 
-def _require_active_path() -> str:
-    """Devuelve la ruta activa o lanza un error claro si aún no se ha configurado."""
-    path = get_active_json_path()
-    if not path:
-        raise RuntimeError(
-            "No hay ningún archivo de proyectos configurado. "
-            "Llama a set_active_json_path() (o completa la configuración inicial "
-            "de la app) antes de cargar o guardar proyectos."
-        )
-    return path
-
-
 def _load_raw() -> dict:
-    data_file = _require_active_path()
+    data_file = get_active_json_path()
     os.makedirs(os.path.dirname(data_file), exist_ok=True)
     if not os.path.exists(data_file):
         return {"projects": []}
@@ -107,18 +72,10 @@ def _load_raw() -> dict:
 
 
 def _save_raw(data: dict) -> None:
-    data_file = _require_active_path()
+    data_file = get_active_json_path()
     os.makedirs(os.path.dirname(data_file), exist_ok=True)
-
-    # Escritura atómica: se escribe primero a un temporal y se renombra al final,
-    # para que una carpeta sincronizada (Google Drive, Dropbox...) nunca vea
-    # el archivo a medio escribir.
-    tmp_file = data_file + ".tmp"
-    with open(tmp_file, "w", encoding="utf-8") as f:
+    with open(data_file, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp_file, data_file)
 
 
 def load_projects() -> list[dict]:
