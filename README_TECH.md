@@ -88,13 +88,17 @@ If `active_projects_file` is absent or invalid, the app uses `data/projects.json
 
 | Operation | Git commands |
 |---|---|
-| **Push** | `git add -A` → `git commit -m "<message>"` → `git push` |
+| **Push** | `git add -A` → `git commit -m "<message>"` → `git push` (auto-retries with `--set-upstream origin <branch>` if the branch has no upstream yet) |
 | **Pull** | `git fetch` → `git merge FETCH_HEAD` |
 | **Init** | `git init` → (optional) `git remote add origin <url>` |
 | **Status** | `git status` (modified files + unpushed commits) |
 | **Log** | `git log` (last 20 commits) |
 | **Merge conflict check** | `os.path.isfile(".git/MERGE_HEAD")` — detects an unresolved merge left by Pull |
 | **Merge abort** | `git merge --abort` — reverts to the pre-Pull state |
+
+`_push()` centralizes the actual `git push` call. If Git refuses with "has no upstream branch" (typical on a repo's first push, or right after `git init` + `remote add`), it retries once with `git push --set-upstream origin <current-branch>` instead of surfacing the raw error.
+
+`do_add_commit_push()` always attempts the push, even when there's "nothing to commit" — local commits that were never pushed still need to go out.
 
 ---
 

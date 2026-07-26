@@ -223,6 +223,27 @@ def do_fetch_and_merge(path: str) -> tuple[bool, str]:
     return True, f"Fetch y merge completados.\n{msg2}"
 
 
+def _push(path: str) -> tuple[bool, str]:
+    """
+    Ejecuta git push. Si la rama actual no tiene upstream configurado
+    (típico en el primer push de un repo recién inicializado), reintenta
+    automáticamente con --set-upstream origin <rama>.
+    """
+    code, out, err = _run(["git", "push"], path)
+    if code == 0:
+        return True, out or "Push exitoso."
+
+    if "has no upstream branch" in err or "set-upstream" in err:
+        branch_code, branch, _ = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"], path)
+        branch = branch if branch_code == 0 and branch else "HEAD"
+        code2, out2, err2 = _run(["git", "push", "--set-upstream", "origin", branch], path)
+        if code2 == 0:
+            return True, out2 or f"Push exitoso. Upstream configurado: origin/{branch}."
+        return False, err2 or out2 or "Error en push (tras configurar upstream)."
+
+    return False, err or out or "Error en push."
+
+
 def do_add_commit_push(path: str, message: str = "") -> tuple[bool, str]:
     """git add -A + git commit -m + git push."""
     # Add
@@ -235,17 +256,21 @@ def do_add_commit_push(path: str, message: str = "") -> tuple[bool, str]:
         message = f"Actualización automática: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
     code2, out2, err2 = _run(["git", "commit", "-m", message], path)
     if code2 != 0:
-        # Puede ser "nothing to commit"
+        # Puede ser "nothing to commit" — puede haber igualmente commits locales
+        # sin subir, así que se intenta el push de todas formas.
         if "nothing to commit" in (out2 + err2).lower():
-            return True, "Nada que commitear. Haciendo push igualmente..."
+            ok, msg = _push(path)
+            if ok:
+                return True, f"Nada que commitear.\n{msg}"
+            return False, f"Nada que commitear. Error en push: {msg}"
         return False, f"Error en git commit: {err2 or out2}"
 
     # Push
-    code3, out3, err3 = _run(["git", "push"], path)
-    if code3 != 0:
-        return False, f"Commit OK. Error en push: {err3 or out3}"
+    ok, msg = _push(path)
+    if not ok:
+        return False, f"Commit OK. Error en push: {msg}"
 
-    return True, f"Commit y push completados.\n{out3 or 'Push exitoso.'}"
+    return True, f"Commit y push completados.\n{msg}"
 
 
 def get_log(path: str, n: int = 10) -> list[dict]:
