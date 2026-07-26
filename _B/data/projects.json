@@ -1,0 +1,94 @@
+{
+  "projects": [
+    {
+      "id": "f51b813b",
+      "name": "PinkCat GuitManager",
+      "path": "F:\\BACKUPS\\Proyectos\\Proyectos en Python\\PinkCat GuitManager",
+      "added_at": "2026-05-29T15:57:44.023808",
+      "last_push": null,
+      "last_pull": null,
+      "launcher_exe": "F:/BACKUPS/Proyectos/Proyectos en Python/PinkCat GuitManager/GitManager.pyw",
+      "launcher_icon": "F:/BACKUPS/Proyectos/Proyectos en Python/PinkCat GuitManager/ico/PinkCat-GuitManager.png"
+    },
+    {
+      "id": "774683fa",
+      "name": "PinkCat App (Install Example)",
+      "path": "F:\\BACKUPS\\Proyectos\\Proyectos en Python\\PinkCat App (Install Example)",
+      "added_at": "2026-05-29T15:57:59.153136",
+      "last_push": "2026-05-30T04:25:46.613424",
+      "last_pull": null,
+      "launcher_exe": "F:/BACKUPS/Proyectos/Proyectos en Python/PinkCat App (Install Example)/Output/PinkCatApp_Setup.exe",
+      "launcher_icon": "F:/BACKUPS/Proyectos/Proyectos en Python/PinkCat App (Install Example)/rsc/rosa.ico"
+    },
+    {
+      "id": "f7218062",
+      "name": "Auto-Prompting",
+      "path": "F:\\BACKUPS\\Proyectos\\Proyectos en HTML\\Auto-Prompting",
+      "added_at": "2026-05-29T16:17:39.170100",
+      "last_push": "2026-06-01T04:22:03.280567",
+      "last_pull": null,
+      "launcher_exe": "F:/BACKUPS/Proyectos/Proyectos en HTML/Auto-Prompting/_Start/server_manager.pyw",
+      "launcher_icon": "F:/BACKUPS/Proyectos/Proyectos en HTML/Auto-Prompting/favicon.ico"
+    },
+    {
+      "id": "2815d1b5",
+      "name": "ayaxprofesor",
+      "path": "F:\\BACKUPS\\Proyectos\\Proyectos en HTML\\ayaxprofesor",
+      "added_at": "2026-05-29T16:17:50.163298",
+      "last_push": "2026-05-30T04:25:39.876564",
+      "last_pull": null,
+      "launcher_exe": "F:/BACKUPS/Proyectos/Proyectos en HTML/ayaxprofesor/_Start Server/server_manager.pyw",
+      "launcher_icon": "F:/BACKUPS/Proyectos/Proyectos en HTML/ayaxprofesor/favicon.ico"
+    },
+    {
+      "id": "ede366c3",
+      "name": "PinkCat Autocalendar",
+      "path": "F:\\BACKUPS\\Proyectos\\Proyectos en Python\\PinkCat Autocalendar",
+      "added_at": "2026-05-29T16:18:07.007200",
+      "last_push": "2026-05-30T04:34:59.896624",
+      "last_pull": null,
+      "launcher_exe": "F:/BACKUPS/Proyectos/Proyectos en Python/PinkCat Autocalendar/PinkCat Autocalendar.pyw",
+      "launcher_icon": "F:/BACKUPS/Proyectos/Proyectos en Python/PinkCat Autocalendar/ico/PinkCat-Autocalendar.png"
+    },
+    {
+      "id": "0a68b380",
+      "name": "PinkCat Autoheader",
+      "path": "F:\\BACKUPS\\Proyectos\\Proyectos en Python\\PinkCat Autoheader",
+      "added_at": "2026-05-29T16:18:14.444481",
+      "last_push": "2026-05-30T04:25:58.887530",
+      "last_pull": null,
+      "launcher_exe": "F:/BACKUPS/Proyectos/Proyectos en Python/PinkCat Autoheader/PinkCat Autoheader.py",
+      "launcher_icon": "F:/BACKUPS/Proyectos/Proyectos en Python/PinkCat Autoheader/ico/PinkCat-Autoheader.png"
+    },
+    {
+      "id": "3775c6cd",
+      "name": "PinkCat Sort",
+      "path": "F:\\BACKUPS\\Proyectos\\Proyectos en Python\\PinkCat Sort",
+      "added_at": "2026-05-29T16:18:32.366778",
+      "last_push": "2026-05-30T04:26:07.031146",
+      "last_pull": null,
+      "launcher_exe": "F:/BACKUPS/Proyectos/Proyectos en Python/PinkCat Sort/PinkCat Sort.py",
+      "launcher_icon": "F:/BACKUPS/Proyectos/Proyectos en Python/PinkCat Sort/ico/PinkCat-Sort.png"
+    },
+    {
+      "id": "178e6a9c",
+      "name": "Sort by Date and Name found in image",
+      "path": "F:\\BACKUPS\\Proyectos\\Proyectos en Python\\Sort by Date and Name found in image",
+      "added_at": "2026-05-29T16:18:44.944654",
+      "last_push": null,
+      "last_pull": null,
+      "launcher_exe": "F:/BACKUPS/Proyectos/Proyectos en Python/Sort by Date and Name found in image/organizar.pyw",
+      "launcher_icon": null
+    },
+    {
+      "id": "041dcd6f",
+      "name": "Json_Tools",
+      "path": "F:\\BACKUPS\\Proyectos\\Proyectos en HTML\\Auto-Prompting\\Json_Tools",
+      "added_at": "2026-06-01T12:29:16.259115",
+      "last_push": null,
+      "last_pull": null,
+      "launcher_exe": "F:/BACKUPS/Proyectos/Proyectos en HTML/Auto-Prompting/Json_Tools/json_tools_suite.pyw",
+      "launcher_icon": null
+    }
+  ]
+}
