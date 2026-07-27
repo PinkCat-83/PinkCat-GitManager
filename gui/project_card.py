@@ -403,11 +403,17 @@ class ProjectCard(ctk.CTkFrame):
             return
 
         def _worker():
-            status = git.get_status(self.project["path"])
-            self._status = status
-            label = _status_label(status)
-            color = _status_color(status)
-            dot_c = _dot_color(True, status)
+            try:
+                status = git.get_status(self.project["path"])
+                self._status = status
+                label = _status_label(status)
+                color = _status_color(status)
+                dot_c = _dot_color(True, status)
+            except Exception as e:
+                self.after(0, lambda: self.status_label.configure(
+                    text=f"Error al calcular estado: {e}", text_color=C["red"]
+                ))
+                return
             self.after(0, lambda: (
                 self.status_label.configure(text=label, text_color=color),
                 self.dot.configure(text_color=dot_c),

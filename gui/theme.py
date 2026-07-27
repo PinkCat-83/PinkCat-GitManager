@@ -83,3 +83,4 @@ def _status_label(status: dict) -> str:
         parts.append(f"{a} commit{'s' if a != 1 else ''} sin subir")
     if not parts:
         return "Al día  ✓"
+    return "  •  ".join(parts)

@@ -46,7 +46,7 @@ from gui.windows import LogWindow, GhostFilesWindow, ChangesWindow, GitignoreWin
 class GitManagerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Git Manager")
+        self.title("PinkCat GitManager")
         self.geometry("1150x760")
         self.resizable(False, False)
         self.configure(fg_color=C["bg"])
@@ -62,7 +62,7 @@ class GitManagerApp(ctk.CTk):
         except Exception as e:
             import traceback
             messagebox.showerror(
-                "Error al iniciar Git Manager",
+                "Error al iniciar PinkCat GitManager",
                 f"Ocurrió un error al cargar la aplicación:\n\n{e}\n\n"
                 f"{traceback.format_exc()}"
             )
@@ -97,7 +97,7 @@ class GitManagerApp(ctk.CTk):
         def _quit():
             if messagebox.askyesno(
                 "Salir",
-                "Git Manager necesita esta configuración para funcionar.\n"
+                "PinkCat GitManager necesita esta configuración para funcionar.\n"
                 "¿Salir de la aplicación?"
             ):
                 self.destroy()
@@ -117,7 +117,7 @@ class GitManagerApp(ctk.CTk):
         header.pack_propagate(False)
 
         ctk.CTkLabel(
-            header, text="◈  GIT MANAGER",
+            header, text="◈  PINKCAT GITMANAGER",
             font=FONT_TITLE, text_color=C["accent"]
         ).pack(side="left", padx=24, pady=0)
 
