@@ -1,0 +1,9 @@
+# Ignorar los .env
+.env/
+.env
+
+# Ignorar todos los archivos y carpetas que empiezan por guion bajo
+_*
+
+# Ignorar todos los archivos con extensión .bat
+*.bat
