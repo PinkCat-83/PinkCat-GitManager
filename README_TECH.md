@@ -1,4 +1,4 @@
-# 🔧 Technical README — Git Manager
+# 🔧 Technical README — PinkCat GitManager
 
 > Internal reference for development, debugging, and AI-assisted work.  
 > → [Presentation README](./README.md)
@@ -11,23 +11,31 @@
 
 - Wait for the author to specify what needs to be done before proceeding.
 - Ask for the relevant files before making any modifications.
-- Git operations are isolated in `src/git_operations.py` — keep them there. Do not add Git logic anywhere in `gui/`.
-- Project persistence is handled exclusively by `src/project_manager.py` — do not add state management elsewhere.
-- The active JSON path is stored in `%APPDATA%\GitManager\config.json` via `src/project_manager.py`. Do not hardcode JSON paths anywhere.
+- All code additions (identifiers, comments, docstrings) must be written in English. No hardcoded text in any other language belongs in the source — user-facing text always goes through `src/i18n.py`'s `t(key)` (see §11).
+- Git operations are isolated in `src/git_operations.py` — keep them there. Do not add Git logic anywhere in `gui/`. Result messages returned from that module are already localized via `t()` — don't format raw user-facing strings there without a translation key.
+- Project persistence is handled exclusively by `src/project_manager.py` — do not add state management elsewhere. It also owns the active language and theme settings (same `%APPDATA%\PinkCatGitManager\config.json`, see §4).
+- The active JSON path is stored in `%APPDATA%\PinkCatGitManager\config.json` via `src/project_manager.py`. Do not hardcode JSON paths anywhere.
 - The app detects and reports merge conflicts (see §7) but must never attempt to resolve them (no auto-merge strategies, no diff/picker UI). Only "abort" or "let the user resolve manually" are valid actions.
 - Keep the scope in mind (see disclaimer above) — this is deliberately a lightweight, single-user tool. Don't add multi-user/collaboration features (conflict resolution UI, branch management, PR review, etc.) unless explicitly requested.
 - The `gui/` package is split by responsibility (see §1–§2). Keep new dialogs in `dialogs.py`, new detail windows in `windows.py`, and don't grow `app.py` back into a monolith — it should stay limited to `GitManagerApp` (layout + callback wiring).
+- No UI file imports `gui.themes.*` directly — always go through `gui.theme_loader.get_theme()` (see §12). Colors always come from the `C` dict in `gui/theme.py`, never a hardcoded hex value in a `gui/*.py` screen file.
+- Any new UI string needs a new row in `language/translations.csv` (Español + English at minimum) and must be read via `t("your_key")` — never a literal string in a widget's `text=`.
 
 ---
 
 ## 1. Project Structure
 
 ```
-GitManager/
-├── GitManager.pyw           # Entry point — launched directly (.pyw = no console window)
+PinkCat GitManager/
+├── PinkCat GitManager.pyw    # Entry point — launched directly (.pyw = no console window)
 ├── gui/
-│   ├── app.py                 # GitManagerApp — main window, layout, callback wiring
-│   ├── theme.py                # Color palette (C), fonts (FONT_*), format/status helpers
+│   ├── app.py                 # GitManagerApp — main window, settings menu, layout, callback wiring
+│   ├── theme.py                # Active palette (C), fonts (FONT_*), format/status helpers
+│   ├── theme_loader.py          # get_theme(name) — single access point for gui/themes/*
+│   ├── themes/
+│   │   ├── green.py              # Terminal-green palette (this project's default/historical theme)
+│   │   ├── pink.py                # Shared PinkCat Design System default theme
+│   │   └── pro.py                 # Light professional theme
 │   ├── base.py                 # BaseDialog — shared base class for every dialog/window
 │   ├── dialogs.py               # Action dialogs: Output, Commit, MergeConflict, InitRepo,
 │   │                            #   FirstRun, Launcher, Purge
@@ -35,17 +43,21 @@ GitManager/
 │   └── windows.py                # Detail windows: Log, GhostFiles, Changes, Gitignore
 ├── src/
 │   ├── git_operations.py     # All Git logic: init, fetch, merge, push, status, log
-│   └── project_manager.py    # JSON read/write for the project list + active JSON config
+│   ├── project_manager.py    # JSON read/write for the project list + app settings (JSON path, language, theme)
+│   └── i18n.py                # Loads language/translations.csv, exposes t(key, **kwargs)
+├── language/
+│   └── translations.csv      # key;Español;English — every UI string in the app
 ├── ico/
-│   ├── PinkCat-GuitManager.ico
-│   └── PinkCat-GuitManager.png
+│   ├── PinkCat-GitManager.ico
+│   ├── PinkCat-GitManager.png
+│   └── PinkCat-Mascot.png     # Mascot logo shown top-right in the title bar (§11)
 ├── README.md
 └── README_TECH.md
 ```
 
-> `gui/app.py` used to contain the entire UI (~2200 lines: every dialog, the project card, and the detail windows). It's now split by responsibility across the six files above — `app.py` itself only holds `GitManagerApp` (window layout + callback wiring). `gui/app.py` defensively inserts the project root into `sys.path` at import time (`if _ROOT not in sys.path: sys.path.insert(0, _ROOT)`), so `from gui.xxx import ...` and `from src import ...` resolve correctly regardless of exactly how `GitManager.pyw` launches this module.
+> `gui/app.py` used to contain the entire UI (~2200 lines: every dialog, the project card, and the detail windows). It's now split by responsibility across the files above — `app.py` itself only holds `GitManagerApp` (window layout + menu + callback wiring). `gui/app.py` defensively inserts the project root into `sys.path` at import time (`if _ROOT not in sys.path: sys.path.insert(0, _ROOT)`), so `from gui.xxx import ...` and `from src import ...` resolve correctly regardless of exactly how `PinkCat GitManager.pyw` launches this module.
 >
-> The `data/projects.json` folder and the `.bat` launch scripts from earlier versions no longer exist. Launching is now done directly via `GitManager.pyw`.
+> The `data/projects.json` folder and the `.bat` launch scripts from earlier versions no longer exist. Launching is now done directly via `PinkCat GitManager.pyw`.
 
 ---
 
@@ -53,23 +65,26 @@ GitManager/
 
 | File | Responsibility |
 |---|---|
-| `GitManager.pyw` | Entry point — launches the app with no console window |
-| `gui/app.py` | `GitManagerApp` — header, project list, callback wiring between UI and `src/` |
-| `gui/theme.py` | Color palette `C`, fonts (`FONT_*`), and the `_fmt_date` / `_status_color` / `_dot_color` / `_status_label` helpers |
+| `PinkCat GitManager.pyw` | Entry point — launches the app with no console window |
+| `gui/app.py` | `GitManagerApp` — header, settings menu (language/theme/projects file), project list, callback wiring between UI and `src/` |
+| `gui/theme.py` | Active palette `C` (via `theme_loader.get_theme()`), fonts (`FONT_*`), and the `_fmt_date` / `_status_color` / `_dot_color` / `_status_label` helpers |
+| `gui/theme_loader.py` | `get_theme(name)` — the only function allowed to import `gui.themes.*` |
+| `gui/themes/green.py`, `pink.py`, `pro.py` | Palette dictionaries following the shared Design System key schema |
 | `gui/base.py` | `BaseDialog` — focus-grabbing base class every dialog/window inherits from |
 | `gui/dialogs.py` | `OutputWindow`, `CommitDialog`, `MergeConflictDialog`, `InitRepoDialog`, `FirstRunDialog`, `LauncherDialog`, `PurgeDialog` |
 | `gui/project_card.py` | `ProjectCard` — the per-project card widget (header, launcher button, collapsible body, action buttons) |
 | `gui/windows.py` | `LogWindow`, `GhostFilesWindow`, `ChangesWindow`, `GitignoreWindow` — detail/data-viewer windows |
-| `src/git_operations.py` | All Git commands: `init`, `add -A`, `commit`, `push`, `fetch`, `merge`, `status`, `log` |
-| `src/project_manager.py` | Load and save the active projects JSON; manage which JSON is active via `%APPDATA%` |
+| `src/git_operations.py` | All Git commands: `init`, `add -A`, `commit`, `push`, `fetch`, `merge`, `status`, `log` — result messages are localized via `src/i18n.t()` |
+| `src/project_manager.py` | Load and save the active projects JSON; manage active JSON path, language, and theme via `%APPDATA%` |
+| `src/i18n.py` | Loads `language/translations.csv`; exposes `t(key, **kwargs)`, `set_language()`, `get_language()` |
 
 ---
 
 ## 3. Data Format (`projects.json`)
 
-The active JSON can be any file on disk, named however the user likes — the path is stored in `%APPDATA%\GitManager\config.json`.
+The active JSON can be any file on disk, named however the user likes — the path is stored in `%APPDATA%\PinkCatGitManager\config.json`.
 
-This allows using different project lists per machine or per context, by selecting a JSON from the `📁` button in the header.
+This allows using different project lists per machine or per context, by selecting a JSON from **Settings → 📁 Projects file: ...** (`GitManagerApp._change_json`, `gui/app.py`). This used to be a loose button in the header; moved into the settings menu during this audit per Design System §9 (infrequent config action, confirmed with the author instead of decided unilaterally).
 
 There is **no automatic default location**. This is intentional (see §9, First-Run Setup): the user must explicitly pick or create the file the first time the app runs, since a common use case is pointing it at a folder synced with Google Drive/Dropbox/etc. so the list travels between computers — something the app can't guess on its own.
 
@@ -97,18 +112,22 @@ Writes to `projects.json` are atomic (`project_manager._save_raw`): the new cont
 
 ---
 
-## 4. System Config (`%APPDATA%\GitManager\config.json`)
+## 4. System Config (`%APPDATA%\PinkCatGitManager\config.json`)
 
-Stored at `C:\Users\<user>\AppData\Roaming\GitManager\config.json`.  
+Stored at `C:\Users\<user>\AppData\Roaming\PinkCatGitManager\config.json`.  
 Created automatically on first run. Independent of where the app is installed.
 
 ```json
 {
-  "active_projects_file": "D:/Shared/my_projects.json"
+  "active_projects_file": "D:/Shared/my_projects.json",
+  "language": "Español",
+  "theme": "green"
 }
 ```
 
-If `active_projects_file` is absent or invalid, `project_manager.get_active_json_path()` returns `""` (`is_configured()` returns `False`) — by design, there is no fallback file. See §9.
+If `active_projects_file` is absent or invalid, `project_manager.get_active_json_path()` returns `""` (`is_configured()` returns `False`) — by design, there is no fallback file. See §9. `language` defaults to `"Español"` and `theme` defaults to `"green"` (this project's historical palette) if absent.
+
+**Migration from the pre-rename folder:** versions before this audit stored the same file at `%APPDATA%\GitManager\config.json` (no `PinkCat` prefix — see the audit checklist, point 12). `project_manager._migrate_legacy_config()` copies that file into the new `PinkCatGitManager` folder automatically, once, the first time the app runs after the update — the old folder is left untouched, nothing is deleted, and existing users don't need to reconfigure anything.
 
 ---
 
@@ -164,12 +183,12 @@ The app **never resolves merge conflicts automatically**. It only detects when a
 
 **Flow in `gui/app.py`:**
 
-1. `ProjectCard.refresh_status()` checks `is_merging()` before running the normal status worker. If true, the card shows a red dot and "⚠ Conflicto de merge sin resolver" — visible without the user doing anything.
+1. `ProjectCard.refresh_status()` checks `is_merging()` before running the normal status worker. If true, the card shows a red dot and the `card_merge_conflict_status` string ("⚠ Unresolved merge conflict") — visible without the user doing anything.
 2. `_do_pull()` and `_do_push()` both check `is_merging()` first. If a conflict is already open, they call `_warn_merge_conflict()` instead of running the Git command.
 3. If a Pull *causes* a new conflict, `_after_conflict()` intercepts the failed result and opens `MergeConflictDialog` directly (instead of the generic `OutputWindow`).
 4. `MergeConflictDialog` lists the conflicted files and offers:
-   - **Cerrar** — leave it for the user to resolve manually (editor/terminal).
-   - **Abortar merge** — calls `do_merge_abort()` and refreshes the card.
+   - **Close** (`btn_close`) — leave it for the user to resolve manually (editor/terminal).
+   - **Abort merge** (`btn_abort_merge`) — calls `do_merge_abort()` and refreshes the card.
 
 No conflict-resolution UI (diff view, "ours/theirs" picker, etc.) exists or is planned — this is intentionally out of scope. See AI Instructions.
 
@@ -177,7 +196,7 @@ No conflict-resolution UI (diff view, "ours/theirs" picker, etc.) exists or is p
 
 ## 8. Repository Initialization
 
-If a project's folder has no `.git` directory, the card shows an **"⚡ Inicializar repositorio"** button instead of Push/Pull.
+If a project's folder has no `.git` directory, the card shows a **"⚡ Initialize repository"** button (`card_init_repo_btn`) instead of Push/Pull.
 
 **`src/git_operations.py`:**
 
@@ -204,9 +223,9 @@ There is no automatic default `projects.json` location (see §3–§4) — this 
 **`gui/dialogs.py` — `FirstRunDialog`:**
 
 A `BaseDialog` with two explicit choices (no "cancel to get the other option" semantics):
-- **"📂 Ya tengo un archivo de proyectos"** → open an existing JSON.
-- **"✚ Crear uno nuevo"** → choose name + location for a new one (any filename works, `projects.json` is only the suggested default).
-- **"Salir de Git Manager"** → confirms, then quits.
+- **"📂 I already have a projects file"** (`btn_pick_existing`) → open an existing JSON.
+- **"✚ Create a new one"** (`btn_create_new`) → choose name + location for a new one (any filename works, `projects.json` is only the suggested default).
+- **"Quit Git Manager"** (`btn_quit_app`) → confirms, then quits.
 
 **Flow in `gui/app.py` — `GitManagerApp._first_run_setup()`:**
 
@@ -218,6 +237,48 @@ A `BaseDialog` with two explicit choices (no "cancel to get the other option" se
 
 ---
 
-## 10. Pending Tasks
+## 10. Internationalization (i18n)
+
+All UI text lives in `language/translations.csv` — one row per key, one column per language (`key;Español;English`). Loaded once at import time by `src/i18n.py`.
+
+| Function | Purpose |
+|---|---|
+| `t(key, **kwargs)` | Returns the string for `key` in the active language, formatting `{placeholder}` fields with `kwargs`. Falls back to Español, then to the raw key, if missing. |
+| `set_language(lang)` | Switches the active language (`"Español"` or `"English"`). |
+| `get_language()` | Returns the currently active language name. |
+
+- Multi-line values are stored with a literal `\n` inside the CSV cell (not a real line break, so the row stays on one CSV line) — `t()` unescapes it to a real newline before returning.
+- `gui/app.py` calls `i18n.set_language(pm.get_active_language())` once, immediately after importing `src.i18n` and before any dialog/window is built.
+- `src/git_operations.py` calls `t()` directly to build its returned result messages, so Git logic stays in `src/` while its output is still fully localized — the `gui/` layer just displays whatever string it gets back, unchanged.
+- The active language is switched from **Settings → Language** in the menu bar (`gui/app.py::_build_menu`) and persisted via `project_manager.set_active_language()`. Per Design System §10, this applies **live, without restarting** — see §11.
+
+---
+
+## 11. Theme System & Settings Menu
+
+Palette handling follows the shared `PinkCat_Design_System.md`: `gui/theme_loader.get_theme(name)` is the only function that imports a `gui/themes/*` module; every screen imports the resolved `C` dict from `gui/theme.py` instead.
+
+| Theme | File | Notes |
+|---|---|---|
+| `green` (default here) | `gui/themes/green.py` | This project's original terminal-green look; the Design System's historical reference palette. |
+| `pink` | `gui/themes/pink.py` | Shared PinkCat default theme. |
+| `pro` | `gui/themes/pro.py` | Light, professional theme — no dark variant. |
+
+Each theme dict exposes exactly the shared key schema: `bg`, `panel`, `card`, `card_hover`, `border`, `accent`, `accent_dim`, `success`, `danger`, `warning`, `info`, `text`, `text_dim`, `text_muted`, `corner_radius_card`, `corner_radius_btn`. `gui/theme.py` also derives the mono/title font family from the active theme (Consolas for Green/Pink, Segoe UI only for Pro) — absolute sizes stay a project concern, not a theme one.
+
+⚠ **Non-negotiable rule (Design System §3):** `success`/`danger`/`warning`/`info` are a fixed semantic palette — a status helper must never return `accent`/`accent_dim` for an "ok"/positive state. `gui/theme.py::_status_color()` / `_dot_color()` and every "operation succeeded" indicator across `gui/dialogs.py` and `gui/windows.py` return `C["success"]`, not `C["accent"]`. This matters in practice: in the `green` theme `accent` and `success` happen to share the same hex value, so a regression here is invisible until the user switches to `pink` or `pro` — always verify status colors under a non-`green` theme, not just the default one.
+
+**Settings menu** (`gui/app.py::_build_menu`): a classic top menu bar (`tk.Menu`) with **Settings → Language** and **Settings → Theme** submenus, each a radio-button list.
+
+**Language switches live (Design System §10) — theme does not:**
+- `GitManagerApp._change_language()` persists the choice via `project_manager.set_active_language()`, flips `src.i18n`'s active language immediately (`i18n.set_language()`), then calls `GitManagerApp.refresh_language()`, which re-reads every visible widget's `text=` with `t()` — the window title, header title/buttons, empty-list message, status bar, the `menu_settings`/`menu_language`/`menu_theme` cascade labels and the theme radio labels (`entryconfigure(..., label=...)`), and `ProjectCard.refresh_language()` on every card (buttons, push/pull date labels, the launcher tooltip via `refresh_launcher_btn()`, and the status label/dot via `refresh_status()`). No widget is destroyed or recreated.
+  - ⚠ The top-level `menubar = tk.Menu(self, tearoff=0)` **must** keep `tearoff=0`. Without it, Tk reserves index 0 for an invisible tearoff pseudo-entry and the `Settings` cascade shifts to index 1, silently breaking `entryconfigure(0, ...)` (`_tkinter.TclError: unknown option "-label"`) — this exact regression was caught by a smoke test while implementing live language switching.
+- `GitManagerApp._change_theme()` persists via `project_manager.set_active_theme()` and shows a "restart required" `messagebox` instead — this is a deliberate choice, not a gap: `C`, `FONT_*`, and every widget's colors are resolved once at import/build time, and rebuilding every screen's palette in place was judged not worth the complexity for a single-user tool (Design System §10).
+
+**PinkCat mascot logo** (`GitManagerApp._build_logo`, in `gui/app.py`): rendered from `ico/PinkCat-Mascot.png`, packed first among the header's right-side widgets so it always sits in the outermost top-right corner of the title bar — outside the settings menu, independent of the active theme, per Design System §8–§9. Loaded via Pillow and downscaled to `_LOGO_SIZE` (44px) with `Image.thumbnail()`. If Pillow isn't installed or the file is missing, it falls back to a 🐾 emoji instead of disappearing entirely — the brand mark itself must never be fully absent, only its rendering degrades.
+
+---
+
+## 12. Pending Tasks
 
 - [ ] None currently tracked

@@ -1,8 +1,8 @@
 """
 dialogs.py
-Diálogos de acción/confirmación: resultado de operaciones, commit, conflicto
-de merge, inicialización de repositorio, primera configuración, lanzador y
-purga de historial. Todos heredan de BaseDialog.
+Action/confirmation dialogs: operation result, commit, merge conflict,
+repository initialization, first-run setup, launcher, and history purge.
+All inherit from BaseDialog.
 """
 
 import customtkinter as ctk
@@ -10,10 +10,15 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 import os
 
+from src.i18n import t
 from gui.theme import C, FONT_MONO, FONT_MONO_S, FONT_LABEL, FONT_LABEL_B, FONT_SMALL, FONT_BIG
 from gui.base import BaseDialog
 
-# ─── Ventana de log/resultado ─────────────────────────────────────────────────
+_R_CARD = C["corner_radius_card"]
+_R_BTN = C["corner_radius_btn"]
+
+
+# ─── Output/result window ─────────────────────────────────────────────────────
 class OutputWindow(BaseDialog):
     def __init__(self, master, title: str, content: str, success: bool):
         super().__init__(master)
@@ -26,7 +31,7 @@ class OutputWindow(BaseDialog):
         self.attributes("-topmost", True)
         self.after(100, self._grab_focus)
 
-        color = C["accent"] if success else C["red"]
+        color = C["success"] if success else C["danger"]
         icon  = "✓" if success else "✗"
 
         header = ctk.CTkLabel(
@@ -39,19 +44,19 @@ class OutputWindow(BaseDialog):
             self, font=FONT_MONO_S,
             fg_color=C["panel"], text_color=C["text"],
             border_color=C["border"], border_width=1,
-            corner_radius=8
+            corner_radius=_R_CARD
         )
         box.pack(fill="both", expand=True, padx=20, pady=(0, 12))
         box.insert("end", content)
         box.configure(state="disabled")
 
         ctk.CTkButton(
-            self, text="Cerrar", command=self._close,
+            self, text=t("btn_close"), command=self._close,
             fg_color=C["border"], hover_color=C["card_hover"],
-            text_color=C["text"], corner_radius=6, height=34
+            text_color=C["text"], corner_radius=_R_BTN, height=34
         ).pack(pady=(0, 16))
         self.protocol("WM_DELETE_WINDOW", self._close)
-        self._on_close = None  # callback opcional
+        self._on_close = None  # optional callback
 
     def _close(self):
         cb = self._on_close
@@ -60,11 +65,11 @@ class OutputWindow(BaseDialog):
             cb()
 
 
-# ─── Diálogo de commit ────────────────────────────────────────────────────────
+# ─── Commit dialog ────────────────────────────────────────────────────────────
 class CommitDialog(BaseDialog):
     def __init__(self, master, project_name: str, callback):
         super().__init__(master)
-        self.title("Commit & Push")
+        self.title(t("op_title_commit_push"))
         self.geometry("480x230")
         self.resizable(False, False)
         self.configure(fg_color=C["bg"])
@@ -75,12 +80,12 @@ class CommitDialog(BaseDialog):
         self.callback = callback
 
         ctk.CTkLabel(
-            self, text=f"Subir:  {project_name}",
+            self, text=t("commit_upload_label", name=project_name),
             font=FONT_BIG, text_color=C["text"]
         ).pack(padx=24, pady=(20, 4), anchor="w")
 
         ctk.CTkLabel(
-            self, text="Mensaje del commit (vacío = fecha/hora automática):",
+            self, text=t("commit_msg_label"),
             font=FONT_LABEL, text_color=C["text_dim"]
         ).pack(padx=24, anchor="w")
 
@@ -88,8 +93,8 @@ class CommitDialog(BaseDialog):
             self, font=FONT_MONO,
             fg_color=C["panel"], text_color=C["text"],
             border_color=C["border"], border_width=1,
-            placeholder_text="Ej: Añadir funcionalidad X",
-            height=38, corner_radius=6
+            placeholder_text=t("commit_msg_placeholder"),
+            height=38, corner_radius=_R_BTN
         )
         self.entry.pack(padx=24, pady=(6, 16), fill="x")
         self.entry.bind("<Return>", lambda _: self._confirm())
@@ -98,15 +103,15 @@ class CommitDialog(BaseDialog):
         row.pack(padx=24, fill="x")
 
         ctk.CTkButton(
-            row, text="Cancelar", command=self.destroy,
+            row, text=t("btn_cancel"), command=self.destroy,
             fg_color=C["border"], hover_color=C["card_hover"],
-            text_color=C["text"], corner_radius=6, height=36, width=110
+            text_color=C["text"], corner_radius=_R_BTN, height=36, width=110
         ).pack(side="left")
 
         ctk.CTkButton(
-            row, text="⬆  Subir", command=self._confirm,
+            row, text=t("btn_upload"), command=self._confirm,
             fg_color=C["accent_dim"], hover_color=C["accent"],
-            text_color="#000000", corner_radius=6, height=36, font=FONT_LABEL_B
+            text_color="#000000", corner_radius=_R_BTN, height=36, font=FONT_LABEL_B
         ).pack(side="right")
 
     def _confirm(self):
@@ -115,12 +120,12 @@ class CommitDialog(BaseDialog):
         self.callback(msg)
 
 
-# ─── Diálogo de conflicto de merge ────────────────────────────────────────────
+# ─── Merge conflict dialog ─────────────────────────────────────────────────────
 class MergeConflictDialog(BaseDialog):
-    """Se muestra cuando el repo queda en conflicto de merge sin resolver."""
+    """Shown when the repo is left with an unresolved merge conflict."""
     def __init__(self, master, project: dict, conflicts: list[str], on_abort):
         super().__init__(master)
-        self.title("Conflicto de merge")
+        self.title(t("dialog_title_merge_conflict"))
         self.geometry("480x340")
         self.resizable(False, False)
         self.configure(fg_color=C["bg"])
@@ -130,29 +135,28 @@ class MergeConflictDialog(BaseDialog):
         self.after(100, self._grab_focus)
 
         ctk.CTkLabel(
-            self, text=f"⚠  Conflicto en «{project['name']}»",
-            font=FONT_BIG, text_color=C["red"]
+            self, text=t("merge_conflict_header", name=project["name"]),
+            font=FONT_BIG, text_color=C["danger"]
         ).pack(padx=24, pady=(20, 8), anchor="w")
 
         ctk.CTkLabel(
             self,
-            text="Esta app no resuelve conflictos automáticamente.\nArchivos afectados:",
+            text=t("merge_conflict_intro"),
             font=FONT_LABEL, text_color=C["text_dim"], justify="left"
         ).pack(padx=24, anchor="w")
 
         box = ctk.CTkTextbox(
             self, font=FONT_MONO_S, height=110,
             fg_color=C["panel"], text_color=C["text"],
-            border_color=C["border"], border_width=1, corner_radius=8
+            border_color=C["border"], border_width=1, corner_radius=_R_CARD
         )
         box.pack(fill="x", padx=24, pady=(6, 12))
-        box.insert("end", "\n".join(conflicts) or "(no se detectaron archivos, revisa manualmente)")
+        box.insert("end", "\n".join(conflicts) or t("merge_conflict_no_files"))
         box.configure(state="disabled")
 
         ctk.CTkLabel(
             self,
-            text="Resuélvelos manualmente (editor/terminal) y haz commit,\n"
-                 "o aborta el merge para volver al estado anterior al Pull.",
+            text=t("merge_conflict_footer"),
             font=FONT_SMALL, text_color=C["text_dim"], justify="left"
         ).pack(padx=24, anchor="w")
 
@@ -160,24 +164,24 @@ class MergeConflictDialog(BaseDialog):
         row.pack(padx=24, pady=(16, 20), fill="x")
 
         ctk.CTkButton(
-            row, text="Cerrar", command=self.destroy,
+            row, text=t("btn_close"), command=self.destroy,
             fg_color=C["border"], hover_color=C["card_hover"],
-            text_color=C["text"], corner_radius=6, height=36, width=110
+            text_color=C["text"], corner_radius=_R_BTN, height=36, width=110
         ).pack(side="left")
 
         ctk.CTkButton(
-            row, text="⏪  Abortar merge", command=lambda: (self.destroy(), on_abort()),
-            fg_color="#6b1a1a", hover_color=C["red"],
-            text_color="#ffffff", corner_radius=6, height=36, font=FONT_LABEL_B
+            row, text=t("btn_abort_merge"), command=lambda: (self.destroy(), on_abort()),
+            fg_color="#6b1a1a", hover_color=C["danger"],
+            text_color="#ffffff", corner_radius=_R_BTN, height=36, font=FONT_LABEL_B
         ).pack(side="right")
 
 
-# ─── Diálogo de inicialización de repositorio ────────────────────────────────
+# ─── Repository initialization dialog ─────────────────────────────────────────
 class InitRepoDialog(BaseDialog):
-    """Pide (opcionalmente) la URL del remoto antes de hacer git init."""
+    """Optionally asks for the remote URL before running git init."""
     def __init__(self, master, project_name: str, callback):
         super().__init__(master)
-        self.title("Inicializar repositorio")
+        self.title(t("op_title_init_repo"))
         self.geometry("500x250")
         self.resizable(False, False)
         self.configure(fg_color=C["bg"])
@@ -188,12 +192,12 @@ class InitRepoDialog(BaseDialog):
         self.callback = callback
 
         ctk.CTkLabel(
-            self, text=f"Inicializar:  {project_name}",
+            self, text=t("init_repo_label", name=project_name),
             font=FONT_BIG, text_color=C["text"]
         ).pack(padx=24, pady=(20, 4), anchor="w")
 
         ctk.CTkLabel(
-            self, text="URL del remoto 'origin' (opcional, puedes dejarlo vacío):",
+            self, text=t("init_repo_url_label"),
             font=FONT_LABEL, text_color=C["text_dim"]
         ).pack(padx=24, anchor="w")
 
@@ -201,15 +205,14 @@ class InitRepoDialog(BaseDialog):
             self, font=FONT_MONO,
             fg_color=C["panel"], text_color=C["text"],
             border_color=C["border"], border_width=1,
-            placeholder_text="https://github.com/usuario/repo.git",
-            height=38, corner_radius=6
+            placeholder_text=t("init_repo_url_placeholder"),
+            height=38, corner_radius=_R_BTN
         )
         self.entry.pack(padx=24, pady=(6, 4), fill="x")
         self.entry.bind("<Return>", lambda _: self._confirm())
 
         ctk.CTkLabel(
-            self, text="Sin remoto, el repositorio queda solo en local\n"
-                       "(podrás configurarlo más tarde).",
+            self, text=t("init_repo_note"),
             font=FONT_SMALL, text_color=C["text_muted"], justify="left"
         ).pack(padx=24, pady=(0, 12), anchor="w")
 
@@ -217,15 +220,15 @@ class InitRepoDialog(BaseDialog):
         row.pack(padx=24, fill="x")
 
         ctk.CTkButton(
-            row, text="Cancelar", command=self.destroy,
+            row, text=t("btn_cancel"), command=self.destroy,
             fg_color=C["border"], hover_color=C["card_hover"],
-            text_color=C["text"], corner_radius=6, height=36, width=110
+            text_color=C["text"], corner_radius=_R_BTN, height=36, width=110
         ).pack(side="left")
 
         ctk.CTkButton(
-            row, text="⚡  Inicializar", command=self._confirm,
+            row, text=t("btn_init"), command=self._confirm,
             fg_color=C["accent_dim"], hover_color=C["accent"],
-            text_color="#000000", corner_radius=6, height=36, font=FONT_LABEL_B
+            text_color="#000000", corner_radius=_R_BTN, height=36, font=FONT_LABEL_B
         ).pack(side="right")
 
     def _confirm(self):
@@ -234,15 +237,15 @@ class InitRepoDialog(BaseDialog):
         self.callback(url)
 
 
-# ─── Diálogo de primera configuración ─────────────────────────────────────────
+# ─── First-run setup dialog ────────────────────────────────────────────────────
 class FirstRunDialog(BaseDialog):
     """
-    Se muestra cuando no hay ningún projects.json configurado todavía.
-    Ofrece explícitamente dos caminos (nada de 'cancela para crear uno nuevo').
+    Shown when no projects.json has been configured yet.
+    Offers two explicit paths (no "cancel to get the other option" semantics).
     """
     def __init__(self, master, on_existing, on_new, on_quit):
         super().__init__(master)
-        self.title("Configuración inicial — Git Manager")
+        self.title(t("dialog_title_first_run"))
         self.geometry("520x400")
         self.resizable(False, False)
         self.configure(fg_color=C["bg"])
@@ -253,16 +256,13 @@ class FirstRunDialog(BaseDialog):
         self.protocol("WM_DELETE_WINDOW", on_quit)
 
         ctk.CTkLabel(
-            self, text="◈  Bienvenido a Git Manager",
+            self, text=t("first_run_welcome"),
             font=FONT_BIG, text_color=C["accent"]
         ).pack(padx=24, pady=(24, 8), anchor="w")
 
         ctk.CTkLabel(
             self,
-            text="Aún no hay ningún archivo de proyectos configurado.\n"
-                 "Puedes llamarlo como quieras y tener varios distintos.\n\n"
-                 "Si quieres que se sincronice entre varios ordenadores,\n"
-                 "elige una carpeta dentro de Google Drive, Dropbox, etc.",
+            text=t("first_run_body"),
             font=FONT_LABEL, text_color=C["text_dim"], justify="left"
         ).pack(padx=24, anchor="w")
 
@@ -270,33 +270,33 @@ class FirstRunDialog(BaseDialog):
         row.pack(padx=24, pady=(24, 8), fill="x")
 
         ctk.CTkButton(
-            row, text="📂  Ya tengo un archivo de proyectos", height=42,
+            row, text=t("btn_pick_existing"), height=42,
             fg_color=C["panel"], hover_color=C["card_hover"],
             text_color=C["text"], border_color=C["border"], border_width=1,
-            corner_radius=6, font=FONT_LABEL_B,
+            corner_radius=_R_BTN, font=FONT_LABEL_B,
             command=lambda: (self.destroy(), on_existing())
         ).pack(fill="x", pady=(0, 10))
 
         ctk.CTkButton(
-            row, text="✚  Crear uno nuevo", height=42,
+            row, text=t("btn_create_new"), height=42,
             fg_color=C["accent_dim"], hover_color=C["accent"],
-            text_color="#000000", corner_radius=6, font=FONT_LABEL_B,
+            text_color="#000000", corner_radius=_R_BTN, font=FONT_LABEL_B,
             command=lambda: (self.destroy(), on_new())
         ).pack(fill="x")
 
         ctk.CTkButton(
-            self, text="Salir de Git Manager", command=on_quit,
+            self, text=t("btn_quit_app"), command=on_quit,
             fg_color="transparent", hover_color=C["card_hover"],
-            text_color=C["text_muted"], corner_radius=6, height=32, font=FONT_SMALL
+            text_color=C["text_muted"], corner_radius=_R_BTN, height=32, font=FONT_SMALL
         ).pack(pady=(16, 16))
 
 
-# ─── Diálogo de configuración del lanzador ───────────────────────────────────
+# ─── Launcher configuration dialog ────────────────────────────────────────────
 class LauncherDialog(BaseDialog):
-    """Permite elegir el ejecutable y el icono del lanzador de un proyecto."""
+    """Lets the user choose the executable and icon for a project's launcher."""
     def __init__(self, master, project: dict, callback):
         super().__init__(master)
-        self.title("Configurar lanzador")
+        self.title(t("dialog_title_launcher"))
         self.geometry("520x300")
         self.resizable(False, False)
         self.configure(fg_color=C["bg"])
@@ -314,13 +314,13 @@ class LauncherDialog(BaseDialog):
 
     def _build(self):
         ctk.CTkLabel(
-            self, text=f"Lanzador  —  {self.project['name']}",
+            self, text=t("launcher_title", name=self.project["name"]),
             font=FONT_BIG, text_color=C["text"]
         ).pack(padx=24, pady=(20, 14), anchor="w")
 
-        # Ejecutable
+        # Executable
         ctk.CTkLabel(
-            self, text="Archivo a ejecutar (.exe, .bat, .pyw, ...):",
+            self, text=t("launcher_exe_label"),
             font=FONT_LABEL, text_color=C["text_dim"]
         ).pack(padx=24, anchor="w")
 
@@ -331,20 +331,20 @@ class LauncherDialog(BaseDialog):
             row_exe, textvariable=self._exe_var,
             font=FONT_MONO_S, fg_color=C["panel"],
             text_color=C["text"], border_color=C["border"],
-            border_width=1, height=34, corner_radius=6
+            border_width=1, height=34, corner_radius=_R_BTN
         ).pack(side="left", fill="x", expand=True, padx=(0, 8))
 
         ctk.CTkButton(
-            row_exe, text="Examinar", width=90, height=34,
+            row_exe, text=t("btn_browse"), width=90, height=34,
             fg_color=C["panel"], hover_color=C["card_hover"],
             text_color=C["text_dim"], border_color=C["border"], border_width=1,
-            corner_radius=6, font=FONT_SMALL,
+            corner_radius=_R_BTN, font=FONT_SMALL,
             command=self._browse_exe
         ).pack(side="left")
 
-        # Icono
+        # Icon
         ctk.CTkLabel(
-            self, text="Imagen del icono (.png / .ico / .jpg):",
+            self, text=t("launcher_icon_label"),
             font=FONT_LABEL, text_color=C["text_dim"]
         ).pack(padx=24, anchor="w")
 
@@ -355,51 +355,51 @@ class LauncherDialog(BaseDialog):
             row_icon, textvariable=self._icon_var,
             font=FONT_MONO_S, fg_color=C["panel"],
             text_color=C["text"], border_color=C["border"],
-            border_width=1, height=34, corner_radius=6
+            border_width=1, height=34, corner_radius=_R_BTN
         ).pack(side="left", fill="x", expand=True, padx=(0, 8))
 
         ctk.CTkButton(
-            row_icon, text="Examinar", width=90, height=34,
+            row_icon, text=t("btn_browse"), width=90, height=34,
             fg_color=C["panel"], hover_color=C["card_hover"],
             text_color=C["text_dim"], border_color=C["border"], border_width=1,
-            corner_radius=6, font=FONT_SMALL,
+            corner_radius=_R_BTN, font=FONT_SMALL,
             command=self._browse_icon
         ).pack(side="left")
 
-        # Botones
+        # Buttons
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
         btn_row.pack(fill="x", padx=24)
 
         ctk.CTkButton(
-            btn_row, text="Cancelar", command=self.destroy,
+            btn_row, text=t("btn_cancel"), command=self.destroy,
             fg_color=C["border"], hover_color=C["card_hover"],
-            text_color=C["text"], corner_radius=6, height=36, width=110
+            text_color=C["text"], corner_radius=_R_BTN, height=36, width=110
         ).pack(side="left")
 
         ctk.CTkButton(
-            btn_row, text="Limpiar", command=self._clear,
+            btn_row, text=t("btn_clear"), command=self._clear,
             fg_color="transparent", hover_color=C["card_hover"],
-            text_color=C["text_muted"], corner_radius=6, height=36, width=90
+            text_color=C["text_muted"], corner_radius=_R_BTN, height=36, width=90
         ).pack(side="left", padx=8)
 
         ctk.CTkButton(
-            btn_row, text="Guardar", command=self._confirm,
+            btn_row, text=t("btn_save"), command=self._confirm,
             fg_color=C["accent_dim"], hover_color=C["accent"],
-            text_color="#000000", corner_radius=6, height=36, font=FONT_LABEL_B
+            text_color="#000000", corner_radius=_R_BTN, height=36, font=FONT_LABEL_B
         ).pack(side="right")
 
     def _browse_exe(self):
         path = filedialog.askopenfilename(
-            title="Selecciona el archivo a ejecutar",
-            filetypes=[("Todos los archivos", "*.*")]
+            title=t("launcher_browse_exe_title"),
+            filetypes=[(t("filetype_all"), "*.*")]
         )
         if path:
             self._exe_var.set(path)
 
     def _browse_icon(self):
         path = filedialog.askopenfilename(
-            title="Selecciona el icono",
-            filetypes=[("Imágenes", "*.png *.ico *.jpg *.jpeg"), ("Todos", "*.*")]
+            title=t("launcher_browse_icon_title"),
+            filetypes=[(t("filetype_images"), "*.png *.ico *.jpg *.jpeg"), (t("filetype_all_short"), "*.*")]
         )
         if path:
             self._icon_var.set(path)
@@ -415,15 +415,15 @@ class LauncherDialog(BaseDialog):
         self.callback(exe, icon)
 
 
-# ─── Diálogo de purga de historial ───────────────────────────────────────────
+# ─── History purge dialog ──────────────────────────────────────────────────────
 class PurgeDialog(BaseDialog):
     """
-    Ventana de advertencia + selección para eliminar un archivo o carpeta
-    del historial completo de Git.
+    Warning + selection window to remove a file or folder from the entire
+    Git history.
     """
     def __init__(self, master, project: dict, callback):
         super().__init__(master)
-        self.title("Limpiar historial de Git")
+        self.title(t("dialog_title_purge"))
         self.geometry("620x640")
         self.resizable(False, True)
         self.configure(fg_color=C["bg"])
@@ -438,75 +438,55 @@ class PurgeDialog(BaseDialog):
         self._build()
 
     def _build(self):
-        # Cabecera de peligro
-        hdr = ctk.CTkFrame(self, fg_color="#2a1010", corner_radius=8)
+        # Danger header
+        hdr = ctk.CTkFrame(self, fg_color="#2a1010", corner_radius=_R_CARD)
         hdr.pack(fill="x", padx=20, pady=(18, 0))
 
         ctk.CTkLabel(
-            hdr, text="OPERACION DESTRUCTIVA E IRREVERSIBLE",
-            font=FONT_LABEL_B, text_color=C["red"]
+            hdr, text=t("purge_danger_title"),
+            font=FONT_LABEL_B, text_color=C["danger"]
         ).pack(padx=16, pady=(12, 4), anchor="w")
 
         ctk.CTkLabel(
             hdr,
-            text=(
-                "Esta funcion reescribe TODO el historial del repositorio.\n"
-                "El archivo o carpeta elegido desaparecera de cada commit que haya existido."
-            ),
+            text=t("purge_danger_body"),
             font=FONT_SMALL, text_color="#e8a0a0", justify="left"
         ).pack(padx=16, pady=(0, 12), anchor="w")
 
         ctk.CTkLabel(
-            self, text="Cuando tiene sentido usar esto:",
-            font=FONT_LABEL_B, text_color=C["yellow"]
+            self, text=t("purge_when_to_use_title"),
+            font=FONT_LABEL_B, text_color=C["warning"]
         ).pack(padx=20, pady=(14, 4), anchor="w")
 
-        casos = (
-            "OK  Subiste por error una contrasena, API key o dato sensible.\n"
-            "OK  Metiste un archivo enorme que no deberia estar en el repo.\n"
-            "OK  Quieres borrar una carpeta de cache o build de todo el historial.\n"
-            "OK  Eres el unico participante del repo (tu caso: perfecto para esto)."
-        )
         ctk.CTkLabel(
-            self, text=casos,
+            self, text=t("purge_when_to_use_body"),
             font=FONT_SMALL, text_color=C["text"], justify="left"
         ).pack(padx=28, anchor="w")
 
         ctk.CTkLabel(
-            self, text="Cuando NO deberias usarlo:",
-            font=FONT_LABEL_B, text_color=C["red"]
+            self, text=t("purge_when_not_to_use_title"),
+            font=FONT_LABEL_B, text_color=C["danger"]
         ).pack(padx=20, pady=(12, 4), anchor="w")
 
-        no_casos = (
-            "NO  Si hay mas personas colaborando: sus clones quedaran desincronizados.\n"
-            "NO  Si no tienes claro que estas borrando.\n"
-            "NO  Como sustituto de un .gitignore (mejor prevenir que curar)."
-        )
         ctk.CTkLabel(
-            self, text=no_casos,
+            self, text=t("purge_when_not_to_use_body"),
             font=FONT_SMALL, text_color="#e8a0a0", justify="left"
         ).pack(padx=28, anchor="w")
 
         ctk.CTkLabel(
-            self, text="Que hacer despues:",
-            font=FONT_LABEL_B, text_color=C["blue"]
+            self, text=t("purge_after_title"),
+            font=FONT_LABEL_B, text_color=C["info"]
         ).pack(padx=20, pady=(12, 4), anchor="w")
 
-        post = (
-            "Tras limpiar el historial local, haz un push forzado\n"
-            "para que GitHub tambien lo olvide:\n\n"
-            "    git push origin --force --all\n\n"
-            "La ventana de resultado te lo recordara."
-        )
         ctk.CTkLabel(
-            self, text=post,
+            self, text=t("purge_after_body"),
             font=FONT_MONO_S, text_color=C["text_dim"], justify="left"
         ).pack(padx=28, anchor="w")
 
         ctk.CTkFrame(self, fg_color=C["border"], height=1).pack(fill="x", padx=20, pady=(14, 10))
 
         ctk.CTkLabel(
-            self, text="Que quieres eliminar del historial?",
+            self, text=t("purge_what_label"),
             font=FONT_LABEL_B, text_color=C["text"]
         ).pack(padx=20, anchor="w")
 
@@ -514,21 +494,21 @@ class PurgeDialog(BaseDialog):
         radio_row.pack(padx=28, pady=(6, 0), anchor="w")
 
         ctk.CTkRadioButton(
-            radio_row, text="Un archivo concreto", variable=self._mode,
+            radio_row, text=t("purge_radio_file"), variable=self._mode,
             value="file", font=FONT_LABEL, text_color=C["text"],
             fg_color=C["accent"], border_color=C["border"],
             command=self._update_hint
         ).pack(side="left", padx=(0, 24))
 
         ctk.CTkRadioButton(
-            radio_row, text="Una carpeta entera", variable=self._mode,
+            radio_row, text=t("purge_radio_folder"), variable=self._mode,
             value="folder", font=FONT_LABEL, text_color=C["text"],
             fg_color=C["accent"], border_color=C["border"],
             command=self._update_hint
         ).pack(side="left")
 
         self.hint_label = ctk.CTkLabel(
-            self, text="Ruta relativa al repo  (ej: secrets/api_key.txt)",
+            self, text=t("purge_hint_file"),
             font=FONT_SMALL, text_color=C["text_dim"]
         )
         self.hint_label.pack(padx=20, pady=(8, 2), anchor="w")
@@ -540,16 +520,16 @@ class PurgeDialog(BaseDialog):
             entry_row, font=FONT_MONO,
             fg_color=C["panel"], text_color=C["text"],
             border_color=C["border"], border_width=1,
-            placeholder_text="carpeta/archivo.ext",
-            height=38, corner_radius=6
+            placeholder_text=t("purge_path_placeholder"),
+            height=38, corner_radius=_R_BTN
         )
         self.path_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
 
         ctk.CTkButton(
-            entry_row, text="Examinar", width=90, height=38,
+            entry_row, text=t("btn_browse"), width=90, height=38,
             fg_color=C["panel"], hover_color=C["card_hover"],
             text_color=C["text_dim"], border_color=C["border"], border_width=1,
-            corner_radius=6, font=FONT_SMALL,
+            corner_radius=_R_BTN, font=FONT_SMALL,
             command=self._browse
         ).pack(side="left")
 
@@ -557,29 +537,29 @@ class PurgeDialog(BaseDialog):
         btn_row.pack(fill="x", padx=20, pady=(12, 16))
 
         ctk.CTkButton(
-            btn_row, text="Cancelar", command=self.destroy,
+            btn_row, text=t("btn_cancel"), command=self.destroy,
             fg_color=C["border"], hover_color=C["card_hover"],
-            text_color=C["text"], corner_radius=6, height=38, width=120
+            text_color=C["text"], corner_radius=_R_BTN, height=38, width=120
         ).pack(side="left")
 
         ctk.CTkButton(
-            btn_row, text="Limpiar historial", command=self._confirm,
-            fg_color="#6b1a1a", hover_color=C["red"],
-            text_color=C["text"], corner_radius=6, height=38, font=FONT_LABEL_B
+            btn_row, text=t("btn_clean_history"), command=self._confirm,
+            fg_color="#6b1a1a", hover_color=C["danger"],
+            text_color=C["text"], corner_radius=_R_BTN, height=38, font=FONT_LABEL_B
         ).pack(side="right")
 
     def _update_hint(self):
         if self._mode.get() == "file":
-            self.hint_label.configure(text="Ruta relativa al repo  (ej: secrets/api_key.txt)")
+            self.hint_label.configure(text=t("purge_hint_file"))
         else:
-            self.hint_label.configure(text="Ruta relativa al repo  (ej: build/  o  node_modules)")
+            self.hint_label.configure(text=t("purge_hint_folder"))
 
     def _browse(self):
         repo = self.project["path"]
         if self._mode.get() == "file":
-            chosen = filedialog.askopenfilename(initialdir=repo, title="Selecciona el archivo")
+            chosen = filedialog.askopenfilename(initialdir=repo, title=t("purge_browse_file_title"))
         else:
-            chosen = filedialog.askdirectory(initialdir=repo, title="Selecciona la carpeta")
+            chosen = filedialog.askdirectory(initialdir=repo, title=t("purge_browse_folder_title"))
         if not chosen:
             return
         try:
@@ -592,14 +572,13 @@ class PurgeDialog(BaseDialog):
     def _confirm(self):
         target = self.path_entry.get().strip().strip("/")
         if not target:
-            messagebox.showwarning("Falta la ruta", "Introduce o selecciona el archivo/carpeta.", parent=self)
+            messagebox.showwarning(t("purge_missing_path_title"), t("purge_missing_path_body"), parent=self)
             return
         is_folder = self._mode.get() == "folder"
-        tipo = "carpeta" if is_folder else "archivo"
+        kind = t("purge_type_folder") if is_folder else t("purge_type_file")
         if not messagebox.askyesno(
-            "Confirmar limpieza",
-            f"Seguro que quieres eliminar el {tipo}:\n\n  {target}\n\n"
-            f"...de TODO el historial?\n\nEsta accion NO se puede deshacer.",
+            t("purge_confirm_title"),
+            t("purge_confirm_body", type=kind, target=target),
             parent=self
         ):
             return

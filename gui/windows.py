@@ -1,8 +1,8 @@
 """
 windows.py
-Ventanas "visor" de datos de un proyecto: log de commits, archivos fantasma
-(borrados del historial), cambios pendientes de commit/push, y revisor de
-.gitignore. Todas heredan de BaseDialog.
+Data "viewer" windows for a project: commit log, ghost files (deleted from
+history), pending changes, and the .gitignore reviewer. All inherit from
+BaseDialog.
 """
 
 import customtkinter as ctk
@@ -11,16 +11,21 @@ from tkinter import messagebox
 import threading
 
 from src import git_operations as git
+from src.i18n import t
 
 from gui.theme import C, FONT_BIG, FONT_LABEL, FONT_LABEL_B, FONT_MONO_S, FONT_SMALL
 from gui.base import BaseDialog
 from gui.dialogs import OutputWindow
 
-# ─── Ventana de Log ───────────────────────────────────────────────────────────
+_R_CARD = C["corner_radius_card"]
+_R_BTN = C["corner_radius_btn"]
+
+
+# ─── Log window ────────────────────────────────────────────────────────────────
 class LogWindow(BaseDialog):
     def __init__(self, master, project: dict):
         super().__init__(master)
-        self.title(f"Log — {project['name']}")
+        self.title(t("window_title_log", name=project["name"]))
         self.geometry("680x460")
         self.configure(fg_color=C["bg"])
         self.transient(master)
@@ -29,7 +34,7 @@ class LogWindow(BaseDialog):
         self.after(100, self._grab_focus)
 
         ctk.CTkLabel(
-            self, text=f"Historial de commits  —  {project['name']}",
+            self, text=t("log_header", name=project["name"]),
             font=FONT_BIG, text_color=C["text"]
         ).pack(padx=20, pady=(16, 8), anchor="w")
 
@@ -37,13 +42,13 @@ class LogWindow(BaseDialog):
             self, font=FONT_MONO_S,
             fg_color=C["panel"], text_color=C["text"],
             border_color=C["border"], border_width=1,
-            corner_radius=8
+            corner_radius=_R_CARD
         )
         box.pack(fill="both", expand=True, padx=20, pady=(0, 12))
 
         commits = git.get_log(project["path"], n=20)
         if not commits:
-            box.insert("end", "No hay commits o no se pudo leer el log.")
+            box.insert("end", t("log_empty"))
         else:
             for c in commits:
                 box.insert("end", f"  {c['hash']}  ", "hash")
@@ -56,22 +61,21 @@ class LogWindow(BaseDialog):
         box.configure(state="disabled")
 
         ctk.CTkButton(
-            self, text="Cerrar", command=self.destroy,
+            self, text=t("btn_close"), command=self.destroy,
             fg_color=C["border"], hover_color=C["card_hover"],
-            text_color=C["text"], corner_radius=6, height=34
+            text_color=C["text"], corner_radius=_R_BTN, height=34
         ).pack(pady=(0, 16))
 
 
-
-# ─── Ventana de Archivos Fantasma ────────────────────────────────────────────
+# ─── Ghost files window ────────────────────────────────────────────────────────
 class GhostFilesWindow(BaseDialog):
     """
-    Muestra todos los archivos que existieron en el historial
-    pero ya no están en la rama actual. Permite recuperarlos.
+    Shows every file that existed in the history but is no longer on the
+    current branch. Allows recovering them.
     """
     def __init__(self, master, project: dict):
         super().__init__(master)
-        self.title(f"Archivos borrados  —  {project['name']}")
+        self.title(t("window_title_ghosts", name=project["name"]))
         self.geometry("1340x560")
         self.resizable(True, True)
         self.configure(fg_color=C["bg"])
@@ -86,50 +90,50 @@ class GhostFilesWindow(BaseDialog):
         self._load()
 
     def _build(self):
-        # Cabecera
+        # Header
         hdr = ctk.CTkFrame(self, fg_color="transparent")
         hdr.pack(fill="x", padx=20, pady=(16, 0))
 
         ctk.CTkLabel(
-            hdr, text="Archivos fantasma",
+            hdr, text=t("ghosts_header"),
             font=FONT_BIG, text_color=C["text"]
         ).pack(side="left")
 
         self.count_label = ctk.CTkLabel(
-            hdr, text="Buscando...",
+            hdr, text=t("ghosts_searching"),
             font=FONT_SMALL, text_color=C["text_dim"]
         )
         self.count_label.pack(side="left", padx=(12, 0))
 
         ctk.CTkButton(
-            hdr, text="↻ Recargar", width=90, height=30,
+            hdr, text=t("btn_reload"), width=90, height=30,
             fg_color=C["panel"], hover_color=C["card_hover"],
             text_color=C["text_dim"], border_color=C["border"], border_width=1,
-            corner_radius=6, font=FONT_SMALL,
+            corner_radius=_R_BTN, font=FONT_SMALL,
             command=self._load
         ).pack(side="right")
 
         ctk.CTkLabel(
             self,
-            text="Estos archivos ya no existen en la rama actual, pero viven en el historial de Git y se pueden recuperar.",
+            text=t("ghosts_intro"),
             font=FONT_SMALL, text_color=C["text_dim"], wraplength=740, justify="left"
         ).pack(padx=20, pady=(4, 10), anchor="w")
 
-        # Cabecera de tabla
-        cols = ctk.CTkFrame(self, fg_color=C["panel"], corner_radius=6, height=32)
+        # Table header
+        cols = ctk.CTkFrame(self, fg_color=C["panel"], corner_radius=_R_BTN, height=32)
         cols.pack(fill="x", padx=20, pady=(0, 2))
         cols.pack_propagate(False)
 
-        ctk.CTkLabel(cols, text="Ruta del archivo", font=FONT_SMALL,
+        ctk.CTkLabel(cols, text=t("ghosts_col_path"), font=FONT_SMALL,
                      text_color=C["text_dim"], anchor="w", width=700).pack(side="left", padx=(12,0))
-        ctk.CTkLabel(cols, text="Borrado en", font=FONT_SMALL,
+        ctk.CTkLabel(cols, text=t("ghosts_col_deleted"), font=FONT_SMALL,
                      text_color=C["text_dim"], anchor="w", width=130).pack(side="left", padx=(8,0))
-        ctk.CTkLabel(cols, text="Commit", font=FONT_SMALL,
+        ctk.CTkLabel(cols, text=t("ghosts_col_commit"), font=FONT_SMALL,
                      text_color=C["text_dim"], anchor="w", width=60).pack(side="left", padx=(8,0))
-        ctk.CTkLabel(cols, text="Mensaje", font=FONT_SMALL,
+        ctk.CTkLabel(cols, text=t("ghosts_col_message"), font=FONT_SMALL,
                      text_color=C["text_dim"], anchor="w").pack(side="left", padx=(8,0), fill="x", expand=True)
 
-        # Lista scrollable
+        # Scrollable list
         self.list_frame = ctk.CTkScrollableFrame(
             self, fg_color=C["bg"],
             scrollbar_button_color=C["border"],
@@ -138,21 +142,21 @@ class GhostFilesWindow(BaseDialog):
         )
         self.list_frame.pack(fill="both", expand=True, padx=20, pady=(0, 8))
 
-        # Pie
+        # Footer
         footer = ctk.CTkFrame(self, fg_color="transparent")
         footer.pack(fill="x", padx=20, pady=(0, 14))
 
         ctk.CTkButton(
-            footer, text="Cerrar", command=self.destroy,
+            footer, text=t("btn_close"), command=self.destroy,
             fg_color=C["border"], hover_color=C["card_hover"],
-            text_color=C["text"], corner_radius=6, height=36, width=120
+            text_color=C["text"], corner_radius=_R_BTN, height=36, width=120
         ).pack(side="left")
 
     def _load(self):
-        # Limpiar lista
+        # Clear the list
         for w in self.list_frame.winfo_children():
             w.destroy()
-        self.count_label.configure(text="Buscando...", text_color=C["text_dim"])
+        self.count_label.configure(text=t("ghosts_searching"), text_color=C["text_dim"])
 
         def _worker():
             files = git.get_deleted_files(self.project["path"])
@@ -163,55 +167,55 @@ class GhostFilesWindow(BaseDialog):
 
     def _populate(self, files: list):
         if not files:
-            self.count_label.configure(text="No se encontraron archivos borrados.", text_color=C["accent"])
+            self.count_label.configure(text=t("ghosts_none_found"), text_color=C["success"])
             ctk.CTkLabel(
                 self.list_frame,
-                text="El historial no contiene archivos borrados\n(o todos siguen existiendo en la rama actual).",
+                text=t("ghosts_none_found_body"),
                 font=FONT_LABEL, text_color=C["text_muted"]
             ).pack(pady=40)
             return
 
         self.count_label.configure(
-            text=f"{len(files)} archivo{'s' if len(files) != 1 else ''} encontrado{'s' if len(files) != 1 else ''}",
-            text_color=C["yellow"]
+            text=t("ghosts_found_count", n=len(files)),
+            text_color=C["warning"]
         )
 
         for i, f in enumerate(files):
             row_color = C["card"] if i % 2 == 0 else C["panel"]
-            row = ctk.CTkFrame(self.list_frame, fg_color=row_color, corner_radius=6, height=40)
+            row = ctk.CTkFrame(self.list_frame, fg_color=row_color, corner_radius=_R_BTN, height=40)
             row.pack(fill="x", pady=(0, 2))
             row.pack_propagate(False)
 
-            # Ruta
+            # Path
             ctk.CTkLabel(
                 row, text=f["path"],
                 font=FONT_MONO_S, text_color=C["text"], anchor="w", width=700,
                 wraplength=700
             ).pack(side="left", padx=(10, 0))
 
-            # Fecha borrado
+            # Deletion date
             ctk.CTkLabel(
                 row, text=f["date_delete"],
                 font=FONT_SMALL, text_color=C["text_dim"], anchor="w", width=130
             ).pack(side="left", padx=(8, 0))
 
-            # Hash commit
+            # Commit hash
             ctk.CTkLabel(
                 row, text=f["hash_delete"],
                 font=FONT_MONO_S, text_color=C["accent_dim"], anchor="w", width=60
             ).pack(side="left", padx=(8, 0))
 
-            # Mensaje commit (truncado)
+            # Commit message (truncated)
             msg = f["commit_msg"][:40] + "..." if len(f["commit_msg"]) > 40 else f["commit_msg"]
             ctk.CTkLabel(
                 row, text=msg,
                 font=FONT_SMALL, text_color=C["text_dim"], anchor="w"
             ).pack(side="left", padx=(8, 0), fill="x", expand=True)
 
-            # Botón recuperar
-            fdata = f  # captura local
+            # Recover button
+            fdata = f  # local capture
             ctk.CTkButton(
-                row, text="Recuperar", width=88, height=28,
+                row, text=t("btn_recover"), width=88, height=28,
                 fg_color=C["accent_dim"], hover_color=C["accent"],
                 text_color="#000000", corner_radius=5, font=FONT_SMALL,
                 command=lambda fd=fdata: self._recover(fd)
@@ -219,10 +223,8 @@ class GhostFilesWindow(BaseDialog):
 
     def _recover(self, fdata: dict):
         if not messagebox.askyesno(
-            "Recuperar archivo",
-            f"Restaurar el archivo:\n\n  {fdata['path']}\n\n"
-            "El archivo volverá a tu carpeta local.\n"
-            "Después podrás hacer Push para subirlo a GitHub.",
+            t("ghosts_recover_confirm_title"),
+            t("ghosts_recover_confirm_body", path=fdata["path"]),
             parent=self
         ):
             return
@@ -231,10 +233,10 @@ class GhostFilesWindow(BaseDialog):
             self.project["path"], fdata["path"], fdata["hash_full"]
         )
         icon = "✓" if ok else "✗"
-        color = C["accent"] if ok else C["red"]
+        color = C["success"] if ok else C["danger"]
 
         win = ctk.CTkToplevel(self)
-        win.title("Recuperar archivo")
+        win.title(t("ghosts_recover_confirm_title"))
         win.geometry("500x260")
         win.configure(fg_color=C["bg"])
         win.transient(self)
@@ -242,34 +244,33 @@ class GhostFilesWindow(BaseDialog):
         win.attributes("-topmost", True)
         win.after(100, lambda: (win.attributes("-topmost", False), win.focus_force(), win.grab_set()))
 
-        ctk.CTkLabel(win, text=f"{icon}  {'Archivo recuperado' if ok else 'Error al recuperar'}",
+        ctk.CTkLabel(win, text=f"{icon}  {t('ghosts_recovered_ok') if ok else t('ghosts_recovered_err')}",
                      font=FONT_BIG, text_color=color).pack(padx=20, pady=(18, 8), anchor="w")
 
         box = ctk.CTkTextbox(win, font=FONT_MONO_S,
                              fg_color=C["panel"], text_color=C["text"],
-                             border_color=C["border"], border_width=1, corner_radius=8)
+                             border_color=C["border"], border_width=1, corner_radius=_R_CARD)
         box.pack(fill="both", expand=True, padx=20, pady=(0, 10))
         box.insert("end", msg)
         box.configure(state="disabled")
 
-        ctk.CTkButton(win, text="Cerrar", command=win.destroy,
+        ctk.CTkButton(win, text=t("btn_close"), command=win.destroy,
                       fg_color=C["border"], hover_color=C["card_hover"],
-                      text_color=C["text"], corner_radius=6, height=34).pack(pady=(0, 14))
+                      text_color=C["text"], corner_radius=_R_BTN, height=34).pack(pady=(0, 14))
 
         if ok:
-            self._load()  # Recargar la lista por si algo cambió
+            self._load()  # Reload the list in case something changed
 
 
-
-# ─── Ventana de cambios pendientes ───────────────────────────────────────────
+# ─── Pending changes window ────────────────────────────────────────────────────
 class ChangesWindow(BaseDialog):
     """
-    Muestra qué archivos tienen cambios respecto al último commit:
-    nuevos, modificados, borrados y en stage.
+    Shows which files have changes relative to the last commit: new,
+    modified, deleted, and staged.
     """
     def __init__(self, master, project: dict):
         super().__init__(master)
-        self.title(f"Cambios pendientes  —  {project['name']}")
+        self.title(t("window_title_changes", name=project["name"]))
         self.geometry("920x560")
         self.resizable(True, True)
         self.configure(fg_color=C["bg"])
@@ -286,7 +287,7 @@ class ChangesWindow(BaseDialog):
         hdr.pack(fill="x", padx=20, pady=(16, 0))
 
         ctk.CTkLabel(
-            hdr, text="Cambios pendientes de commit/push",
+            hdr, text=t("changes_header"),
             font=FONT_BIG, text_color=C["text"]
         ).pack(side="left")
 
@@ -294,12 +295,12 @@ class ChangesWindow(BaseDialog):
             hdr, text="↻", width=36, height=30,
             fg_color=C["panel"], hover_color=C["card_hover"],
             text_color=C["text_dim"], border_color=C["border"], border_width=1,
-            corner_radius=6, font=FONT_BIG,
+            corner_radius=_R_BTN, font=FONT_BIG,
             command=self._load
         ).pack(side="right")
 
         self.summary = ctk.CTkLabel(
-            self, text="Calculando...",
+            self, text=t("changes_calculating"),
             font=FONT_SMALL, text_color=C["text_dim"], anchor="w"
         )
         self.summary.pack(padx=20, pady=(4, 10), anchor="w")
@@ -313,15 +314,15 @@ class ChangesWindow(BaseDialog):
         self.list_frame.pack(fill="both", expand=True, padx=20, pady=(0, 8))
 
         ctk.CTkButton(
-            self, text="Cerrar", command=self.destroy,
+            self, text=t("btn_close"), command=self.destroy,
             fg_color=C["border"], hover_color=C["card_hover"],
-            text_color=C["text"], corner_radius=6, height=34
+            text_color=C["text"], corner_radius=_R_BTN, height=34
         ).pack(pady=(0, 14))
 
     def _load(self):
         for w in self.list_frame.winfo_children():
             w.destroy()
-        self.summary.configure(text="Calculando...", text_color=C["text_dim"])
+        self.summary.configure(text=t("changes_calculating"), text_color=C["text_dim"])
 
         def _worker():
             status = git.get_status(self.project["path"])
@@ -330,10 +331,10 @@ class ChangesWindow(BaseDialog):
 
     def _populate(self, status: dict):
         groups = [
-            ("Nuevos  (sin seguimiento)",  status.get("new_files", []),  "#5ce05c"),
-            ("Modificados",                status.get("modified",   []),  C["yellow"]),
-            ("En stage (listos para commit)", status.get("staged",  []),  C["blue"]),
-            ("Borrados localmente",         status.get("deleted",   []),  C["red"]),
+            (t("changes_group_new"),      status.get("new_files", []), C["success"]),
+            (t("changes_group_modified"), status.get("modified",   []), C["warning"]),
+            (t("changes_group_staged"),   status.get("staged",     []), C["info"]),
+            (t("changes_group_deleted"),  status.get("deleted",    []), C["danger"]),
         ]
 
         total = status.get("total_changes", 0)
@@ -341,26 +342,26 @@ class ChangesWindow(BaseDialog):
 
         parts = []
         if total:
-            parts.append(f"{total} archivo{'s' if total != 1 else ''} con cambios")
+            parts.append(t("changes_files_with_changes", n=total))
         if ahead:
-            parts.append(f"{ahead} commit{'s' if ahead != 1 else ''} sin subir")
+            parts.append(t("changes_commits_ahead", n=ahead))
         if not parts:
-            self.summary.configure(text="Sin cambios pendientes. Todo al día ✓", text_color=C["accent"])
+            self.summary.configure(text=t("changes_none_pending"), text_color=C["success"])
             ctk.CTkLabel(
                 self.list_frame,
-                text="No hay nada pendiente de subir a GitHub.",
+                text=t("changes_none_pending_body"),
                 font=FONT_LABEL, text_color=C["text_muted"]
             ).pack(pady=40)
             return
 
-        self.summary.configure(text="  ·  ".join(parts), text_color=C["yellow"])
+        self.summary.configure(text="  ·  ".join(parts), text_color=C["warning"])
 
         for group_name, files, color in groups:
             if not files:
                 continue
 
-            # Cabecera de grupo
-            g_hdr = ctk.CTkFrame(self.list_frame, fg_color=C["panel"], corner_radius=6, height=28)
+            # Group header
+            g_hdr = ctk.CTkFrame(self.list_frame, fg_color=C["panel"], corner_radius=_R_BTN, height=28)
             g_hdr.pack(fill="x", pady=(8, 2))
             g_hdr.pack_propagate(False)
             ctk.CTkLabel(
@@ -369,7 +370,7 @@ class ChangesWindow(BaseDialog):
                 font=FONT_SMALL, text_color=color, anchor="w"
             ).pack(fill="x", padx=8, pady=4)
 
-            # Filas de archivos
+            # File rows
             for i, filepath in enumerate(files):
                 row_color = C["card"] if i % 2 == 0 else C["panel"]
                 row = ctk.CTkFrame(self.list_frame, fg_color=row_color, corner_radius=4, height=30)
@@ -381,14 +382,14 @@ class ChangesWindow(BaseDialog):
                     wraplength=860
                 ).pack(fill="x", padx=8, pady=4)
 
-        # Commits sin subir
+        # Commits not yet pushed
         if ahead:
-            g_hdr2 = ctk.CTkFrame(self.list_frame, fg_color=C["panel"], corner_radius=6, height=28)
+            g_hdr2 = ctk.CTkFrame(self.list_frame, fg_color=C["panel"], corner_radius=_R_BTN, height=28)
             g_hdr2.pack(fill="x", pady=(8, 2))
             g_hdr2.pack_propagate(False)
             ctk.CTkLabel(
                 g_hdr2,
-                text=f"  Commits sin subir  ({ahead})",
+                text=f"  {t('changes_group_commits_ahead')}  ({ahead})",
                 font=FONT_SMALL, text_color=C["accent"], anchor="w"
             ).pack(fill="x", padx=8, pady=4)
 
@@ -405,15 +406,15 @@ class ChangesWindow(BaseDialog):
                 ).pack(fill="x", padx=8, pady=4)
 
 
-# ─── Ventana de .gitignore ────────────────────────────────────────────────────
+# ─── .gitignore window ─────────────────────────────────────────────────────────
 class GitignoreWindow(BaseDialog):
     """
-    Muestra el contenido del .gitignore y detecta archivos en GitHub
-    que coincidan con alguna de sus reglas (subidos por error).
+    Shows the .gitignore contents and detects files on GitHub that match one
+    of its rules (uploaded by mistake).
     """
     def __init__(self, master, project: dict):
         super().__init__(master)
-        self.title(f".gitignore  —  {project['name']}")
+        self.title(t("window_title_gitignore", name=project["name"]))
         self.geometry("980x620")
         self.resizable(True, True)
         self.configure(fg_color=C["bg"])
@@ -422,17 +423,17 @@ class GitignoreWindow(BaseDialog):
         self.attributes("-topmost", True)
         self.after(100, self._grab_focus)
         self.project = project
-        self._untracked = set()  # archivos ya procesados en esta sesión
+        self._untracked = set()  # files already processed in this session
         self._build()
         self._load()
 
     def _build(self):
-        # Cabecera
+        # Header
         hdr = ctk.CTkFrame(self, fg_color="transparent")
         hdr.pack(fill="x", padx=20, pady=(16, 0))
 
         ctk.CTkLabel(
-            hdr, text="Revisor de .gitignore",
+            hdr, text=t("gitignore_header"),
             font=FONT_BIG, text_color=C["text"]
         ).pack(side="left")
 
@@ -440,47 +441,47 @@ class GitignoreWindow(BaseDialog):
             hdr, text="↻", width=36, height=30,
             fg_color=C["panel"], hover_color=C["card_hover"],
             text_color=C["text_dim"], border_color=C["border"], border_width=1,
-            corner_radius=6, font=FONT_BIG, command=self._load
+            corner_radius=_R_BTN, font=FONT_BIG, command=self._load
         ).pack(side="right")
 
         ctk.CTkLabel(
             self,
-            text="Archivos que están en GitHub pero coinciden con una regla del .gitignore — podrían haberse subido por error.",
+            text=t("gitignore_intro"),
             font=FONT_SMALL, text_color=C["text_dim"], wraplength=940, justify="left"
         ).pack(padx=20, pady=(4, 10), anchor="w")
 
-        # Dos paneles lado a lado
+        # Two side-by-side panels
         panels = ctk.CTkFrame(self, fg_color="transparent")
         panels.pack(fill="both", expand=True, padx=20, pady=(0, 8))
         panels.columnconfigure(0, weight=1)
         panels.columnconfigure(1, weight=2)
         panels.rowconfigure(0, weight=1)
 
-        # ── Panel izquierdo: reglas del .gitignore ──
-        left = ctk.CTkFrame(panels, fg_color=C["panel"], corner_radius=8, border_color=C["border"], border_width=1)
+        # ── Left panel: .gitignore rules ──
+        left = ctk.CTkFrame(panels, fg_color=C["panel"], corner_radius=_R_CARD, border_color=C["border"], border_width=1)
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
 
         ctk.CTkLabel(
-            left, text="Reglas en .gitignore",
+            left, text=t("gitignore_rules_label"),
             font=FONT_LABEL_B, text_color=C["text_dim"]
         ).pack(padx=12, pady=(10, 6), anchor="w")
 
         self.rules_box = ctk.CTkTextbox(
             left, font=FONT_MONO_S,
             fg_color=C["card"], text_color=C["text_dim"],
-            border_width=0, corner_radius=6
+            border_width=0, corner_radius=_R_BTN
         )
         self.rules_box.pack(fill="both", expand=True, padx=8, pady=(0, 8))
 
-        # ── Panel derecho: coincidencias ──
-        right = ctk.CTkFrame(panels, fg_color=C["panel"], corner_radius=8, border_color=C["border"], border_width=1)
+        # ── Right panel: matches ──
+        right = ctk.CTkFrame(panels, fg_color=C["panel"], corner_radius=_R_CARD, border_color=C["border"], border_width=1)
         right.grid(row=0, column=1, sticky="nsew")
 
         right_hdr = ctk.CTkFrame(right, fg_color="transparent")
         right_hdr.pack(fill="x", padx=12, pady=(10, 6))
 
         ctk.CTkLabel(
-            right_hdr, text="Archivos en GitHub que coinciden",
+            right_hdr, text=t("gitignore_matches_label"),
             font=FONT_LABEL_B, text_color=C["text"]
         ).pack(side="left")
 
@@ -494,26 +495,26 @@ class GitignoreWindow(BaseDialog):
             right, fg_color=C["card"],
             scrollbar_button_color=C["border"],
             scrollbar_button_hover_color=C["accent_dim"],
-            corner_radius=6
+            corner_radius=_R_BTN
         )
         self.matches_frame.pack(fill="both", expand=True, padx=8, pady=(0, 8))
 
-        # Pie
+        # Footer
         footer = ctk.CTkFrame(self, fg_color="transparent")
         footer.pack(fill="x", padx=20, pady=(0, 14))
 
         ctk.CTkButton(
-            footer, text="Cerrar", command=self.destroy,
+            footer, text=t("btn_close"), command=self.destroy,
             fg_color=C["border"], hover_color=C["card_hover"],
-            text_color=C["text"], corner_radius=6, height=36, width=120
+            text_color=C["text"], corner_radius=_R_BTN, height=36, width=120
         ).pack(side="left")
 
         self.btn_apply = ctk.CTkButton(
-            footer, text="Dejar de rastrear seleccionados",
+            footer, text=t("btn_untrack_selected"),
             command=self._apply_untrack,
             fg_color="#2a1010", hover_color="#6b1a1a",
-            text_color=C["red"], border_color="#6b1a1a", border_width=1,
-            corner_radius=6, height=36, font=FONT_LABEL_B, state="disabled"
+            text_color=C["danger"], border_color="#6b1a1a", border_width=1,
+            corner_radius=_R_BTN, height=36, font=FONT_LABEL_B, state="disabled"
         )
         self.btn_apply.pack(side="right")
 
@@ -525,12 +526,12 @@ class GitignoreWindow(BaseDialog):
     def _load(self):
         self.rules_box.configure(state="normal")
         self.rules_box.delete("1.0", "end")
-        self.rules_box.insert("end", "Cargando...")
+        self.rules_box.insert("end", t("changes_calculating"))
         self.rules_box.configure(state="disabled")
         for w in self.matches_frame.winfo_children():
             w.destroy()
         self.match_count.configure(text="")
-        # NO reseteamos self._untracked — queremos conservar el estado visual
+        # Do NOT reset self._untracked — we want to keep the visual state
 
         def _worker():
             data = git.get_gitignore_data(self.project["path"])
@@ -543,13 +544,13 @@ class GitignoreWindow(BaseDialog):
         self._checkboxes = {}   # filepath -> BooleanVar
 
         if not data["gitignore_exists"]:
-            self.rules_box.insert("end", "No se encontró .gitignore\nen este repositorio.")
+            self.rules_box.insert("end", t("gitignore_not_found"))
             self.rules_box.configure(state="disabled")
-            self.match_count.configure(text="Sin .gitignore", text_color=C["text_muted"])
+            self.match_count.configure(text=t("gitignore_no_gitignore_short"), text_color=C["text_muted"])
             return
 
         if not data["rules"]:
-            self.rules_box.insert("end", "El .gitignore está vacío.")
+            self.rules_box.insert("end", t("gitignore_empty"))
         else:
             for rule in data["rules"]:
                 self.rules_box.insert("end", f"  {rule}\n")
@@ -557,10 +558,10 @@ class GitignoreWindow(BaseDialog):
 
         matches = data["tracked"]
         if not matches:
-            self.match_count.configure(text="Ninguna coincidencia  ✓", text_color=C["accent"])
+            self.match_count.configure(text=t("gitignore_no_matches"), text_color=C["success"])
             ctk.CTkLabel(
                 self.matches_frame,
-                text="No se encontró ningún archivo en GitHub\nque coincida con las reglas del .gitignore.\n\n¡Todo correcto!",
+                text=t("gitignore_no_matches_body"),
                 font=FONT_LABEL, text_color=C["text_muted"], justify="center"
             ).pack(pady=40)
             self.btn_apply.configure(state="disabled")
@@ -568,28 +569,28 @@ class GitignoreWindow(BaseDialog):
             return
 
         self.match_count.configure(
-            text=f"{len(matches)} archivo{'s' if len(matches) != 1 else ''} sospechoso{'s' if len(matches) != 1 else ''}",
-            text_color=C["red"]
+            text=t("gitignore_suspicious_count", n=len(matches)),
+            text_color=C["danger"]
         )
 
-        # Cabecera con "marcar todos"
+        # Header with "select all"
         col_hdr = ctk.CTkFrame(self.matches_frame, fg_color=C["panel"], corner_radius=4, height=28)
         col_hdr.pack(fill="x", pady=(0, 4))
         col_hdr.pack_propagate(False)
 
         self._all_var = tk.BooleanVar(value=False)
         ctk.CTkCheckBox(
-            col_hdr, text="  Archivo en GitHub", variable=self._all_var,
+            col_hdr, text=f"  {t('gitignore_col_github_file')}", variable=self._all_var,
             font=FONT_SMALL, text_color=C["text_dim"],
             fg_color=C["accent_dim"], hover_color=C["accent"],
             border_color=C["border"], checkmark_color="#000",
             command=self._toggle_all, width=20, height=20
         ).pack(side="left", padx=(8, 0), pady=4)
-        ctk.CTkLabel(col_hdr, text="Regla que coincide  ", font=FONT_SMALL,
+        ctk.CTkLabel(col_hdr, text=f"{t('gitignore_col_matching_rule')}  ", font=FONT_SMALL,
                      text_color=C["text_dim"], anchor="e", width=200).pack(side="right", padx=8)
 
         for i, m in enumerate(matches):
-            row_color = C["card"] if i % 2 == 0 else "#1a1a20"
+            row_color = C["card"] if i % 2 == 0 else C["panel"]
             row = ctk.CTkFrame(self.matches_frame, fg_color=row_color, corner_radius=4, height=32)
             row.pack(fill="x", pady=(0, 2))
             row.pack_propagate(False)
@@ -599,26 +600,26 @@ class GitignoreWindow(BaseDialog):
 
             ctk.CTkLabel(
                 row, text=f"{m['rule']}  ",
-                font=FONT_MONO_S, text_color=C["red"], anchor="e", width=200
+                font=FONT_MONO_S, text_color=C["danger"], anchor="e", width=200
             ).pack(side="right", padx=8)
 
             already_done = m["file"] in self._untracked
             if already_done:
-                # Fila ya procesada: tick verde + texto apagado
+                # Row already processed: green tick + dimmed text
                 ctk.CTkLabel(
                     row, text="  ✓", font=FONT_MONO_S,
-                    text_color=C["accent"], width=28
+                    text_color=C["success"], width=28
                 ).pack(side="left", padx=(8, 0))
                 ctk.CTkLabel(
-                    row, text=f"  {m['file']}  (pendiente de push)",
+                    row, text=f"  {m['file']}  {t('gitignore_pending_push')}",
                     font=FONT_MONO_S, text_color=C["text_muted"]
                 ).pack(side="left", fill="x", expand=True)
-                # Deshabilitar checkbox de esta fila para que no cuente
+                # Disable this row's checkbox so it doesn't get counted
                 var.set(False)
             else:
                 ctk.CTkCheckBox(
                     row, text=f"  {m['file']}", variable=var,
-                    font=FONT_MONO_S, text_color=C["yellow"],
+                    font=FONT_MONO_S, text_color=C["warning"],
                     fg_color=C["accent_dim"], hover_color=C["accent"],
                     border_color=C["border"], checkmark_color="#000",
                     command=self._update_apply_btn, width=20, height=20
@@ -636,8 +637,8 @@ class GitignoreWindow(BaseDialog):
         if n:
             self.btn_apply.configure(state="normal")
             self.sel_count_label.configure(
-                text=f"{n} seleccionado{'s' if n != 1 else ''}",
-                text_color=C["yellow"]
+                text=t("gitignore_selected_count", n=n),
+                text_color=C["warning"]
             )
         else:
             self.btn_apply.configure(state="disabled")
@@ -647,13 +648,10 @@ class GitignoreWindow(BaseDialog):
         selected = [f for f, v in self._checkboxes.items() if v.get()]
         if not selected:
             return
-        lista = "\n".join(f"  • {f}" for f in selected)
+        file_list = "\n".join(f"  • {f}" for f in selected)
         if not messagebox.askyesno(
-            "Dejar de rastrear",
-            f"¿Quitar del seguimiento de Git los siguientes archivos?\n\n{lista}\n\n"
-            "Seguirán en tu carpeta local pero Git dejará de incluirlos\n"
-            "en futuros commits.\n\n"
-            "Después haz un Push para que desaparezcan de GitHub.",
+            t("gitignore_untrack_title"),
+            t("gitignore_untrack_body", list=file_list),
             parent=self
         ):
             return
@@ -661,7 +659,7 @@ class GitignoreWindow(BaseDialog):
         errors = []
         done = []
         for filepath in selected:
-            # --ignore-unmatch evita error si el archivo ya no está en el índice
+            # --ignore-unmatch avoids an error if the file is no longer in the index
             code, out, err = git._run(
                 ["git", "rm", "--cached", "-r", "--ignore-unmatch", filepath],
                 self.project["path"]
@@ -673,13 +671,13 @@ class GitignoreWindow(BaseDialog):
 
         lines = []
         if done:
-            lines.append(f"Eliminados del seguimiento ({len(done)}):")
+            lines.append(t("gitignore_untrack_removed", n=len(done)))
             lines += [f"  ✓ {f}" for f in done]
         if errors:
-            lines.append(f"\nErrores ({len(errors)}):")
+            lines.append(f"\n{t('gitignore_untrack_errors', n=len(errors))}")
             lines += [f"  ✗ {e}" for e in errors]
         if done:
-            lines.append("\nHaz un Push para que los cambios se reflejen en GitHub.")
+            lines.append(f"\n{t('gitignore_untrack_push_reminder')}")
 
         ok = len(done) > 0
         for f in done:
@@ -693,7 +691,7 @@ class GitignoreWindow(BaseDialog):
             self.sel_count_label.configure(text="")
             self._load()
 
-        win = OutputWindow(self, "Dejar de rastrear", "\n".join(lines), ok)
+        win = OutputWindow(self, t("gitignore_untrack_title"), "\n".join(lines), ok)
         win.protocol("WM_DELETE_WINDOW", lambda: (win.destroy(), _after_close()))
-        # También cuando se cierra con el botón Cerrar interno
+        # Also when closed via the internal Close button
         win._on_close = _after_close

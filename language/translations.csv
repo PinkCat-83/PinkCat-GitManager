@@ -1,0 +1,209 @@
+key;Español;English
+app_title;PinkCat GitManager;PinkCat GitManager
+btn_add_project;+ Añadir proyecto;+ Add project
+btn_refresh_all;↻ Actualizar todo;↻ Refresh all
+empty_list_message;No hay proyectos.\nPulsa  + Añadir proyecto  para empezar.;No projects yet.\nClick  + Add project  to get started.
+status_ready;Listo;Ready
+status_updated;Estado actualizado.;Status updated.
+dialog_add_project_title;Selecciona la carpeta del proyecto;Select the project folder
+status_project_already_added;'{name}' ya está en la lista.;'{name}' is already in the list.
+status_project_added;Proyecto '{name}' añadido.;Project '{name}' added.
+confirm_remove_title;Eliminar proyecto;Remove project
+confirm_remove_body;¿Quitar '{name}' de la lista?\n(No se borrarán los archivos.);Remove '{name}' from the list?\n(Files will not be deleted.)
+status_project_removed;Proyecto '{name}' eliminado de la lista.;Project '{name}' removed from the list.
+op_title_commit_push;Commit & Push;Commit & Push
+op_title_fetch_merge;Fetch y Merge;Fetch & Merge
+status_merge_conflict;Conflicto de merge en '{name}'.;Merge conflict in '{name}'.
+op_title_abort_merge;Abortar merge;Abort merge
+op_title_init_repo;Inicializar repositorio;Initialize repository
+status_op_done;{title} completado.;{title} completed.
+status_op_failed;{title} fallido.;{title} failed.
+op_title_launcher;Lanzador;Launcher
+status_launcher_updated;Lanzador de '{name}' actualizado.;Launcher for '{name}' updated.
+op_title_purge;Limpiar historial;Clean history
+dialog_change_json_title;Selecciona el archivo JSON de proyectos;Select the projects JSON file
+dialog_change_json_new_title;O crea un JSON nuevo;Or create a new JSON
+status_active_json;JSON activo: {name};Active JSON: {name}
+error_startup_title;Error al iniciar PinkCat GitManager;Error starting PinkCat GitManager
+error_startup_body;Ocurrió un error al cargar la aplicación:\n\n{error}\n\n{traceback};An error occurred while loading the application:\n\n{error}\n\n{traceback}
+quit_confirm_title;Salir;Quit
+quit_confirm_body;PinkCat GitManager necesita esta configuración para funcionar.\n¿Salir de la aplicación?;PinkCat GitManager needs this configuration to work.\nQuit the application?
+dialog_pick_existing_title;Selecciona tu archivo de proyectos existente;Select your existing projects file
+dialog_pick_new_title;Elige nombre y ubicación (el nombre es libre, p. ej. 'trabajo.json');Choose a name and location (any name works, e.g. 'work.json')
+filetype_json;JSON;JSON
+filetype_all;Todos los archivos;All files
+menu_settings;Configuración;Settings
+menu_language;Idioma;Language
+menu_theme;Tema;Theme
+menu_theme_green;Green (GitManager clásico);Green (classic GitManager)
+menu_theme_pink;Pink (por defecto PinkCat);Pink (PinkCat default)
+menu_theme_pro;Pro (claro, profesional);Pro (light, professional)
+menu_restart_notice_title;Reinicio necesario;Restart required
+menu_restart_notice_body;El cambio se aplicará la próxima vez que abras PinkCat GitManager.;The change will take effect the next time you open PinkCat GitManager.
+menu_active_json;📁 Archivo de proyectos: {name};📁 Projects file: {name}
+card_calculating_status;Calculando estado...;Calculating status...
+card_no_git_repo;Sin repositorio Git;No Git repository
+card_init_repo_btn;⚡  Inicializar repositorio;⚡  Initialize repository
+card_btn_pull;⬇  Pull  (bajar);⬇  Pull  (download)
+card_btn_push;⬆  Push  (subir);⬆  Push  (upload)
+card_btn_log;Log;Log
+card_btn_purge;Limpiar hist.;Clean hist.
+card_btn_ghosts;Fantasmas;Ghosts
+card_btn_changes;Cambios;Changes
+card_btn_gitignore;.gitignore;.gitignore
+card_merge_conflict_status;⚠ Conflicto de merge sin resolver;⚠ Unresolved merge conflict
+card_status_error;Error al calcular estado: {error};Error calculating status: {error}
+card_launch_error_title;Error al lanzar;Error launching
+card_launcher_tooltip_configured;Clic: lanzar  —  {name}\nClic derecho: cambiar configuración;Click: launch  —  {name}\nRight-click: change settings
+card_launcher_tooltip_empty;Sin lanzador configurado\nClic para configurar;No launcher configured\nClick to configure
+card_push_label;↑ Push: {date};↑ Push: {date}
+card_pull_label;↓ Pull: {date};↓ Pull: {date}
+status_no_remote;Sin remoto configurado;No remote configured
+status_new;{n} nuevos;{n} new
+status_modified;{n} modificados;{n} modified
+status_deleted;{n} borrados;{n} deleted
+status_ahead;{n} commits sin subir;{n} commits ahead
+status_up_to_date;Al día  ✓;Up to date  ✓
+btn_close;Cerrar;Close
+commit_upload_label;Subir:  {name};Upload:  {name}
+commit_msg_label;Mensaje del commit (vacío = fecha/hora automática):;Commit message (empty = automatic date/time):
+commit_msg_placeholder;Ej: Añadir funcionalidad X;E.g.: Add feature X
+btn_cancel;Cancelar;Cancel
+btn_upload;⬆  Subir;⬆  Upload
+dialog_title_merge_conflict;Conflicto de merge;Merge conflict
+merge_conflict_header;⚠  Conflicto en «{name}»;⚠  Conflict in «{name}»
+merge_conflict_intro;Esta app no resuelve conflictos automáticamente.\nArchivos afectados:;This app does not resolve conflicts automatically.\nAffected files:
+merge_conflict_no_files;(no se detectaron archivos, revisa manualmente);(no files detected, check manually)
+merge_conflict_footer;Resuélvelos manualmente (editor/terminal) y haz commit,\no aborta el merge para volver al estado anterior al Pull.;Resolve them manually (editor/terminal) and commit,\nor abort the merge to return to the state before the Pull.
+btn_abort_merge;⏪  Abortar merge;⏪  Abort merge
+init_repo_label;Inicializar:  {name};Initialize:  {name}
+init_repo_url_label;URL del remoto 'origin' (opcional, puedes dejarlo vacío):;URL for the 'origin' remote (optional, can be left empty):
+init_repo_url_placeholder;https://github.com/usuario/repo.git;https://github.com/user/repo.git
+init_repo_note;Sin remoto, el repositorio queda solo en local\n(podrás configurarlo más tarde).;Without a remote, the repository stays local only\n(you can configure it later).
+btn_init;⚡  Inicializar;⚡  Initialize
+dialog_title_first_run;Configuración inicial — PinkCat GitManager;Initial setup — PinkCat GitManager
+first_run_welcome;◈  Bienvenido a PinkCat GitManager;◈  Welcome to PinkCat GitManager
+first_run_body;Aún no hay ningún archivo de proyectos configurado.\nPuedes llamarlo como quieras y tener varios distintos.\n\nSi quieres que se sincronice entre varios ordenadores,\nelige una carpeta dentro de Google Drive, Dropbox, etc.;No projects file has been configured yet.\nYou can name it however you like and keep several different ones.\n\nIf you want it to sync across several computers,\nchoose a folder inside Google Drive, Dropbox, etc.
+btn_pick_existing;📂  Ya tengo un archivo de proyectos;📂  I already have a projects file
+btn_create_new;✚  Crear uno nuevo;✚  Create a new one
+btn_quit_app;Salir de PinkCat GitManager;Quit PinkCat GitManager
+dialog_title_launcher;Configurar lanzador;Configure launcher
+launcher_title;Lanzador  —  {name};Launcher  —  {name}
+launcher_exe_label;Archivo a ejecutar (.exe, .bat, .pyw, ...):;File to run (.exe, .bat, .pyw, ...):
+btn_browse;Examinar;Browse
+launcher_icon_label;Imagen del icono (.png / .ico / .jpg):;Icon image (.png / .ico / .jpg):
+btn_clear;Limpiar;Clear
+btn_save;Guardar;Save
+launcher_browse_exe_title;Selecciona el archivo a ejecutar;Select the file to run
+launcher_browse_icon_title;Selecciona el icono;Select the icon
+filetype_images;Imágenes;Images
+filetype_all_short;Todos;All
+dialog_title_purge;Limpiar historial de Git;Clean Git history
+purge_danger_title;OPERACIÓN DESTRUCTIVA E IRREVERSIBLE;DESTRUCTIVE AND IRREVERSIBLE OPERATION
+purge_danger_body;Esta función reescribe TODO el historial del repositorio.\nEl archivo o carpeta elegido desaparecerá de cada commit que haya existido.;This function rewrites the ENTIRE history of the repository.\nThe chosen file or folder will disappear from every commit that ever existed.
+purge_when_to_use_title;Cuándo tiene sentido usar esto:;When it makes sense to use this:
+purge_when_to_use_body;OK  Subiste por error una contraseña, API key o dato sensible.\nOK  Metiste un archivo enorme que no debería estar en el repo.\nOK  Quieres borrar una carpeta de caché o build de todo el historial.\nOK  Eres el único participante del repo (tu caso: perfecto para esto).;OK  You accidentally uploaded a password, API key, or sensitive data.\nOK  You committed a huge file that shouldn't be in the repo.\nOK  You want to remove a cache/build folder from the entire history.\nOK  You are the only contributor to the repo (your case: perfect for this).
+purge_when_not_to_use_title;Cuándo NO deberías usarlo:;When you should NOT use it:
+purge_when_not_to_use_body;NO  Si hay más personas colaborando: sus clones quedarán desincronizados.\nNO  Si no tienes claro qué estás borrando.\nNO  Como sustituto de un .gitignore (mejor prevenir que curar).;NO  If other people collaborate: their clones will end up out of sync.\nNO  If you're not sure what you're deleting.\nNO  As a substitute for a .gitignore (prevention beats cure).
+purge_after_title;Qué hacer después:;What to do afterwards:
+purge_after_body;Tras limpiar el historial local, haz un push forzado\npara que GitHub también lo olvide:\n\n    git push origin --force --all\n\nLa ventana de resultado te lo recordará.;After cleaning the local history, do a forced push\nso GitHub forgets it too:\n\n    git push origin --force --all\n\nThe result window will remind you.
+purge_what_label;¿Qué quieres eliminar del historial?;What do you want to remove from history?
+purge_radio_file;Un archivo concreto;A specific file
+purge_radio_folder;Una carpeta entera;An entire folder
+purge_hint_file;Ruta relativa al repo  (ej: secrets/api_key.txt);Path relative to the repo  (e.g.: secrets/api_key.txt)
+purge_hint_folder;Ruta relativa al repo  (ej: build/  o  node_modules);Path relative to the repo  (e.g.: build/  or  node_modules)
+purge_path_placeholder;carpeta/archivo.ext;folder/file.ext
+purge_browse_file_title;Selecciona el archivo;Select the file
+purge_browse_folder_title;Selecciona la carpeta;Select the folder
+btn_clean_history;Limpiar historial;Clean history
+purge_missing_path_title;Falta la ruta;Missing path
+purge_missing_path_body;Introduce o selecciona el archivo/carpeta.;Enter or select the file/folder.
+purge_confirm_title;Confirmar limpieza;Confirm cleanup
+purge_confirm_body;¿Seguro que quieres eliminar el {type}:\n\n  {target}\n\n...de TODO el historial?\n\nEsta acción NO se puede deshacer.;Are you sure you want to remove the {type}:\n\n  {target}\n\n...from the ENTIRE history?\n\nThis action CANNOT be undone.
+purge_type_file;archivo;file
+purge_type_folder;carpeta;folder
+window_title_log;Log — {name};Log — {name}
+log_header;Historial de commits  —  {name};Commit history  —  {name}
+log_empty;No hay commits o no se pudo leer el log.;No commits, or the log could not be read.
+window_title_ghosts;Archivos borrados  —  {name};Deleted files  —  {name}
+ghosts_header;Archivos fantasma;Ghost files
+ghosts_searching;Buscando...;Searching...
+btn_reload;↻ Recargar;↻ Reload
+ghosts_intro;Estos archivos ya no existen en la rama actual, pero viven en el historial de Git y se pueden recuperar.;These files no longer exist on the current branch, but they live on in the Git history and can be recovered.
+ghosts_col_path;Ruta del archivo;File path
+ghosts_col_deleted;Borrado en;Deleted on
+ghosts_col_commit;Commit;Commit
+ghosts_col_message;Mensaje;Message
+ghosts_none_found;No se encontraron archivos borrados.;No deleted files were found.
+ghosts_none_found_body;El historial no contiene archivos borrados\n(o todos siguen existiendo en la rama actual).;The history contains no deleted files\n(or they all still exist on the current branch).
+ghosts_found_count;{n} archivos encontrados;{n} files found
+btn_recover;Recuperar;Recover
+ghosts_recover_confirm_title;Recuperar archivo;Recover file
+ghosts_recover_confirm_body;Restaurar el archivo:\n\n  {path}\n\nEl archivo volverá a tu carpeta local.\nDespués podrás hacer Push para subirlo a GitHub.;Restore the file:\n\n  {path}\n\nThe file will return to your local folder.\nYou can then Push to upload it to GitHub.
+ghosts_recovered_ok;Archivo recuperado;File recovered
+ghosts_recovered_err;Error al recuperar;Error recovering
+window_title_changes;Cambios pendientes  —  {name};Pending changes  —  {name}
+changes_header;Cambios pendientes de commit/push;Changes pending commit/push
+changes_calculating;Calculando...;Calculating...
+changes_group_new;Nuevos  (sin seguimiento);New  (untracked)
+changes_group_modified;Modificados;Modified
+changes_group_staged;En stage (listos para commit);Staged (ready to commit)
+changes_group_deleted;Borrados localmente;Deleted locally
+changes_files_with_changes;{n} archivos con cambios;{n} files changed
+changes_commits_ahead;{n} commits sin subir;{n} commits ahead
+changes_none_pending;Sin cambios pendientes. Todo al día ✓;No pending changes. Everything up to date ✓
+changes_none_pending_body;No hay nada pendiente de subir a GitHub.;There is nothing pending to upload to GitHub.
+changes_group_commits_ahead;Commits sin subir;Commits ahead
+window_title_gitignore;.gitignore  —  {name};.gitignore  —  {name}
+gitignore_header;Revisor de .gitignore;.gitignore reviewer
+gitignore_intro;Archivos que están en GitHub pero coinciden con una regla del .gitignore — podrían haberse subido por error.;Files that are on GitHub but match a .gitignore rule — they may have been uploaded by mistake.
+gitignore_rules_label;Reglas en .gitignore;Rules in .gitignore
+gitignore_matches_label;Archivos en GitHub que coinciden;Files on GitHub that match
+gitignore_not_found;No se encontró .gitignore\nen este repositorio.;No .gitignore was found\nin this repository.
+gitignore_no_gitignore_short;Sin .gitignore;No .gitignore
+gitignore_empty;El .gitignore está vacío.;The .gitignore is empty.
+gitignore_no_matches;Ninguna coincidencia  ✓;No matches  ✓
+gitignore_no_matches_body;No se encontró ningún archivo en GitHub\nque coincida con las reglas del .gitignore.\n\n¡Todo correcto!;No file on GitHub matches\nany rule in the .gitignore.\n\nEverything is correct!
+gitignore_suspicious_count;{n} archivos sospechosos;{n} suspicious files
+gitignore_col_github_file;Archivo en GitHub;File on GitHub
+gitignore_col_matching_rule;Regla que coincide;Matching rule
+gitignore_pending_push;(pendiente de push);(pending push)
+btn_untrack_selected;Dejar de rastrear seleccionados;Stop tracking selected
+gitignore_selected_count;{n} seleccionados;{n} selected
+gitignore_untrack_title;Dejar de rastrear;Stop tracking
+gitignore_untrack_body;¿Quitar del seguimiento de Git los siguientes archivos?\n\n{list}\n\nSeguirán en tu carpeta local pero Git dejará de incluirlos\nen futuros commits.\n\nDespués haz un Push para que desaparezcan de GitHub.;Remove the following files from Git tracking?\n\n{list}\n\nThey will remain in your local folder but Git will stop including them\nin future commits.\n\nThen do a Push so they disappear from GitHub.
+gitignore_untrack_removed;Eliminados del seguimiento ({n}):;Removed from tracking ({n}):
+gitignore_untrack_errors;Errores ({n}):;Errors ({n}):
+gitignore_untrack_push_reminder;Haz un Push para que los cambios se reflejen en GitHub.;Do a Push so the changes are reflected on GitHub.
+git_timeout;Tiempo de espera agotado.;Operation timed out.
+git_init_ok;Repositorio inicializado.;Repository initialized.
+git_init_err;Error al inicializar el repositorio.;Error initializing the repository.
+git_remote_set_ok;Remoto '{name}' configurado: {url};Remote '{name}' configured: {url}
+git_remote_set_err;Error al configurar el remoto '{name}'.;Error configuring remote '{name}'.
+git_init_with_remote_err;Repositorio inicializado, pero falló la configuración del remoto:\n{msg};Repository initialized, but the remote configuration failed:\n{msg}
+git_init_no_remote;Sin remoto configurado — añádelo más tarde con 'git remote add origin <url>'.;No remote configured — add one later with 'git remote add origin <url>'.
+git_unknown_branch;desconocida;unknown
+git_fetch_ok;Fetch completado.;Fetch completed.
+git_fetch_err;Error en fetch.;Error during fetch.
+git_merge_ok;Merge completado.;Merge completed.
+git_merge_conflict;Conflicto de merge sin resolver.\n\nArchivos en conflicto:\n{files};Unresolved merge conflict.\n\nConflicted files:\n{files}
+git_merge_err;Error en merge.;Merge error.
+git_fetch_failed;Fetch falló: {msg};Fetch failed: {msg}
+git_fetch_ok_merge_failed;Fetch OK. Merge falló: {msg};Fetch OK. Merge failed: {msg}
+git_fetch_merge_ok;Fetch y merge completados.\n{msg};Fetch and merge completed.\n{msg}
+git_push_ok;Push exitoso.;Push successful.
+git_push_upstream_ok;Push exitoso. Upstream configurado: origin/{branch}.;Push successful. Upstream configured: origin/{branch}.
+git_push_upstream_err;Error en push (tras configurar upstream).;Push error (after configuring upstream).
+git_push_err;Error en push.;Push error.
+git_add_err;Error en git add: {err};Error in git add: {err}
+git_commit_err;Error en git commit: {err};Error in git commit: {err}
+git_nothing_to_commit_pushed;Nada que commitear.\n{msg};Nothing to commit.\n{msg}
+git_nothing_to_commit_push_failed;Nada que commitear. Error en push: {msg};Nothing to commit. Push error: {msg}
+git_commit_push_ok;Commit y push completados.\n{msg};Commit and push completed.\n{msg}
+git_push_after_commit_err;Commit OK. Error en push: {msg};Commit OK. Push error: {msg}
+git_merge_abort_ok;Merge abortado. El repositorio volvió a su estado anterior al Pull.;Merge aborted. The repository returned to its state before the Pull.
+git_merge_abort_err;No se pudo abortar el merge.;Could not abort the merge.
+default_commit_message;Actualización automática: {datetime};Automatic update: {datetime}
+git_purge_result;{type}  "{target}"  eliminado del historial completo.\n\nObjetos huérfanos limpiados (reflog + gc).\n\nSIGUIENTE PASO OBLIGATORIO:\nHaz un Push forzado para actualizar GitHub:\n\n  git push origin --force --all\n\nPuedes ejecutarlo desde la terminal en la carpeta del proyecto.\n\n─────────────────────────────────────\n{output};{type}  "{target}"  removed from the entire history.\n\nOrphaned objects cleaned up (reflog + gc).\n\nMANDATORY NEXT STEP:\nDo a forced Push to update GitHub:\n\n  git push origin --force --all\n\nYou can run it from the terminal in the project folder.\n\n─────────────────────────────────────\n{output}
+git_restore_ok;Archivo recuperado: {path}\n\nEl archivo ha vuelto a tu carpeta local.\nAhora aparecerá como 'modificado' en git status.\nHaz un Push cuando quieras subirlo de nuevo a GitHub.;File recovered: {path}\n\nThe file is back in your local folder.\nIt will now show as 'modified' in git status.\nDo a Push whenever you want to upload it to GitHub again.
+git_restore_err;No se pudo recuperar el archivo.\n\n{err};Could not recover the file.\n\n{err}

@@ -1,35 +1,30 @@
 """
 theme.py
-Paleta de colores, fuentes y helpers de formato/estado usados en toda la UI.
+Active color palette (see gui/theme_loader.py), fonts, and format/status
+helpers used throughout the UI.
 """
 
 import customtkinter as ctk
 from datetime import datetime
 
-# ─── Tema ────────────────────────────────────────────────────────────────────
+from src import project_manager as pm
+from src.i18n import t
+from gui.theme_loader import get_theme
+
+# ─── Active theme ──────────────────────────────────────────────────────────
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 
-# Paleta personalizada
-C = {
-    "bg":         "#0e0f11",
-    "panel":      "#16181c",
-    "card":       "#1c1f24",
-    "card_hover": "#22262d",
-    "border":     "#2a2d35",
-    "accent":     "#3de6a0",        # verde terminal
-    "accent_dim": "#1f7a55",
-    "red":        "#e05c5c",
-    "yellow":     "#e0c05c",
-    "blue":       "#5c9fe0",
-    "text":       "#e8eaf0",
-    "text_dim":   "#6b7280",
-    "text_muted": "#3d4148",
-}
+ACTIVE_THEME_NAME = pm.get_active_theme()
+C = get_theme(ACTIVE_THEME_NAME)
 
-FONT_TITLE  = ("Consolas", 26, "bold")
-FONT_MONO   = ("Consolas", 14)
-FONT_MONO_S = ("Consolas", 13)
+# Font family follows the Design System: Consolas/Segoe UI for Green & Pink,
+# Segoe UI only for Pro. Absolute sizes stay a project concern, not a theme one.
+_MONO_FAMILY = "Segoe UI" if ACTIVE_THEME_NAME == "pro" else "Consolas"
+
+FONT_TITLE  = (_MONO_FAMILY, 26, "bold")
+FONT_MONO   = (_MONO_FAMILY, 14)
+FONT_MONO_S = (_MONO_FAMILY, 13)
 FONT_LABEL  = ("Segoe UI", 14)
 FONT_LABEL_B= ("Segoe UI", 14, "bold")
 FONT_SMALL  = ("Segoe UI", 12)
@@ -50,37 +45,37 @@ def _status_color(status: dict) -> str:
     if not status.get("has_remote"):
         return C["text_dim"]
     if status.get("is_dirty") or status.get("ahead", 0) > 0:
-        return C["yellow"]
-    return C["accent"]
+        return C["warning"]
+    return C["success"]
 
 
 def _dot_color(has_git: bool, status: dict) -> str:
-    """Color del punto luminoso en la cabecera de la tarjeta."""
+    """Color of the status dot in the card header."""
     if not has_git:
-        return C["red"]
+        return C["danger"]
     if status.get("is_dirty") or status.get("ahead", 0) > 0:
-        return C["yellow"]
+        return C["warning"]
     if not status:
-        return C["text_muted"]   # aún cargando
-    return C["accent"]
+        return C["text_muted"]   # still loading
+    return C["success"]
 
 
 def _status_label(status: dict) -> str:
     if not status.get("has_remote"):
-        return "Sin remoto configurado"
+        return t("status_no_remote")
     parts = []
     n = status.get("new_count", 0)
     m = status.get("modified_count", 0)
     d = status.get("deleted_count", 0)
     a = status.get("ahead", 0)
     if n:
-        parts.append(f"{n} nuevo{'s' if n != 1 else ''}")
+        parts.append(t("status_new", n=n))
     if m:
-        parts.append(f"{m} modificado{'s' if m != 1 else ''}")
+        parts.append(t("status_modified", n=m))
     if d:
-        parts.append(f"{d} borrado{'s' if d != 1 else ''}")
+        parts.append(t("status_deleted", n=d))
     if a:
-        parts.append(f"{a} commit{'s' if a != 1 else ''} sin subir")
+        parts.append(t("status_ahead", n=a))
     if not parts:
-        return "Al día  ✓"
+        return t("status_up_to_date")
     return "  •  ".join(parts)

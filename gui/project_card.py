@@ -1,7 +1,7 @@
 """
 project_card.py
-Widget de tarjeta de proyecto: cabecera con estado y lanzador,
-cuerpo colapsable con metadatos y botones de acción (Push/Pull/Log/...).
+Project card widget: header with status and launcher, collapsible body with
+metadata and action buttons (Push/Pull/Log/...).
 """
 
 import customtkinter as ctk
@@ -18,18 +18,23 @@ except ImportError:
 
 from src import git_operations as git
 from src import project_manager as pm
+from src.i18n import t
 
 from gui.theme import (
     C, FONT_BIG, FONT_MONO_S, FONT_SMALL, FONT_LABEL_B,
     _fmt_date, _status_color, _dot_color, _status_label,
 )
 
-# ─── Tarjeta de proyecto ──────────────────────────────────────────────────────
+_R_CARD = C["corner_radius_card"]
+_R_BTN = C["corner_radius_btn"]
+
+
+# ─── Project card ──────────────────────────────────────────────────────────────
 class ProjectCard(ctk.CTkFrame):
     def __init__(self, master, project: dict, on_remove, on_push, on_pull, on_log, on_purge, on_ghost, on_changes, on_gitignore, on_launcher=None, on_init=None, **kwargs):
         super().__init__(
             master, fg_color=C["card"],
-            corner_radius=10, border_color=C["border"], border_width=1,
+            corner_radius=_R_CARD, border_color=C["border"], border_width=1,
             **kwargs
         )
         self.project   = project
@@ -55,11 +60,11 @@ class ProjectCard(ctk.CTkFrame):
         has_git = git.has_git_repo(p["path"])
         self._collapsed = True
 
-        # ── Fila superior (siempre visible) ──
+        # ── Top row (always visible) ──
         top = ctk.CTkFrame(self, fg_color="transparent")
         top.pack(fill="x", padx=16, pady=(14, 12))
 
-        # Chevron colapso
+        # Collapse chevron
         self.chevron = ctk.CTkLabel(
             top, text="▸", font=("Consolas", 20), text_color=C["text_dim"],
             width=24, cursor="hand2"
@@ -67,18 +72,18 @@ class ProjectCard(ctk.CTkFrame):
         self.chevron.pack(side="left", padx=(0, 6))
         self.chevron.bind("<Button-1>", lambda _: self._toggle())
 
-        # Indicador git (color dinámico: verde=ok, amarillo=cambios, rojo=sin repo)
-        init_dot = C["red"] if not has_git else C["text_muted"]
+        # Git indicator (dynamic color: green=ok, yellow=changes, red=no repo)
+        init_dot = C["danger"] if not has_git else C["text_muted"]
         self.dot = ctk.CTkLabel(
             top, text="●", font=("Consolas", 18), text_color=init_dot, width=20
         )
         self.dot.pack(side="left", padx=(0, 8))
 
-        # Botón lanzador (icono del programa)
+        # Launcher button (program icon)
         self._launcher_btn = self._make_launcher_btn(top, p)
         self._launcher_btn.pack(side="left", padx=(0, 8))
 
-        # Nombre — clic también colapsa
+        # Name — clicking it also collapses/expands
         name_lbl = ctk.CTkLabel(
             top, text=p["name"],
             font=FONT_BIG, text_color=C["text"], anchor="w", cursor="hand2"
@@ -86,48 +91,48 @@ class ProjectCard(ctk.CTkFrame):
         name_lbl.pack(side="left", fill="x", expand=True)
         name_lbl.bind("<Button-1>", lambda _: self._toggle())
 
-        # Botón abrir carpeta
+        # Open folder button
         ctk.CTkButton(
             top, text="📁", width=32, height=32,
             fg_color="transparent", hover_color=C["card_hover"],
-            text_color=C["text_dim"], corner_radius=6, font=("Segoe UI", 15),
+            text_color=C["text_dim"], corner_radius=_R_BTN, font=("Segoe UI", 15),
             command=lambda: self._open_folder(p["path"])
         ).pack(side="right", padx=(4, 0))
 
-        # Botón eliminar
+        # Remove button
         ctk.CTkButton(
             top, text="✕", width=28, height=32,
-            fg_color="transparent", hover_color=C["card_hover"],
-            text_color=C["text_muted"], corner_radius=6, font=("Segoe UI", 13),
+            fg_color="transparent", hover_color=C["danger"],
+            text_color=C["text_muted"], corner_radius=_R_BTN, font=("Segoe UI", 13),
             command=lambda: self.on_remove(p["id"])
         ).pack(side="right")
 
-        # ── Cuerpo colapsable (empieza colapsado) ──
+        # ── Collapsible body (starts collapsed) ──
         self.body = ctk.CTkFrame(self, fg_color="transparent")
-        # NO hacemos pack aquí; se muestra al hacer _toggle
+        # NOT packed here; shown on _toggle
 
-        # Ruta
+        # Path
         ctk.CTkLabel(
             self.body, text=p["path"],
             font=FONT_MONO_S, text_color=C["text_dim"], anchor="w",
             wraplength=560
         ).pack(fill="x", padx=44, pady=(0, 2))
 
-        # Estado
+        # Status
         self.status_label = ctk.CTkLabel(
-            self.body, text="Calculando estado...",
+            self.body, text=t("card_calculating_status"),
             font=FONT_SMALL, text_color=C["text_dim"], anchor="w"
         )
         self.status_label.pack(fill="x", padx=44, pady=(0, 8))
 
-        # Separador
+        # Separator
         ctk.CTkFrame(self.body, fg_color=C["border"], height=1).pack(fill="x", padx=16, pady=(0, 8))
 
-        # Fila inferior: metadatos + botones
+        # Bottom row: metadata + buttons
         bottom = ctk.CTkFrame(self.body, fg_color="transparent")
         bottom.pack(fill="x", padx=16, pady=(0, 12))
 
-        # Metadatos
+        # Metadata
         meta = ctk.CTkFrame(bottom, fg_color="transparent")
         meta.pack(side="left", fill="y")
 
@@ -135,96 +140,103 @@ class ProjectCard(ctk.CTkFrame):
             branch = git.get_current_branch(p["path"])
             ctk.CTkLabel(
                 meta, text=f"⎇  {branch}",
-                font=FONT_MONO_S, text_color=C["blue"]
+                font=FONT_MONO_S, text_color=C["info"]
             ).pack(anchor="w")
 
         self.lbl_push = ctk.CTkLabel(
-            meta, text=f"↑ Push: {_fmt_date(p.get('last_push'))}",
+            meta, text=t("card_push_label", date=_fmt_date(p.get("last_push"))),
             font=FONT_SMALL, text_color=C["text_dim"]
         )
         self.lbl_push.pack(anchor="w")
         self.lbl_pull = ctk.CTkLabel(
-            meta, text=f"↓ Pull: {_fmt_date(p.get('last_pull'))}",
+            meta, text=t("card_pull_label", date=_fmt_date(p.get("last_pull"))),
             font=FONT_SMALL, text_color=C["text_dim"]
         )
         self.lbl_pull.pack(anchor="w")
 
-        # Botones
+        # Buttons
         btns = ctk.CTkFrame(bottom, fg_color="transparent")
         btns.pack(side="right")
 
         if not has_git:
-            ctk.CTkLabel(
-                btns, text="Sin repositorio Git", width=0,
+            self.lbl_no_git = ctk.CTkLabel(
+                btns, text=t("card_no_git_repo"), width=0,
                 font=FONT_SMALL, text_color=C["text_muted"]
-            ).pack(side="left", padx=(0, 10))
-            ctk.CTkButton(
-                btns, text="⚡  Inicializar repositorio", width=190, height=34,
+            )
+            self.lbl_no_git.pack(side="left", padx=(0, 10))
+            self.btn_init_repo = ctk.CTkButton(
+                btns, text=t("card_init_repo_btn"), width=190, height=34,
                 fg_color=C["accent_dim"], hover_color=C["accent"],
-                text_color="#000000", corner_radius=6, font=FONT_LABEL_B,
+                text_color="#000000", corner_radius=_R_BTN, font=FONT_LABEL_B,
                 command=lambda: self.on_init(p) if self.on_init else None
-            ).pack(side="left")
+            )
+            self.btn_init_repo.pack(side="left")
             return
 
         self.btn_pull = ctk.CTkButton(
-            btns, text="⬇  Pull  (bajar)", width=148, height=34,
+            btns, text=t("card_btn_pull"), width=148, height=34,
             fg_color=C["panel"], hover_color=C["card_hover"],
             text_color=C["text"], border_color=C["border"], border_width=1,
-            corner_radius=6, font=FONT_LABEL_B,
+            corner_radius=_R_BTN, font=FONT_LABEL_B,
             command=lambda: self.on_pull(p)
         )
         self.btn_pull.pack(side="left", padx=(0, 8))
 
         self.btn_push = ctk.CTkButton(
-            btns, text="⬆  Push  (subir)", width=148, height=34,
+            btns, text=t("card_btn_push"), width=148, height=34,
             fg_color=C["accent_dim"], hover_color=C["accent"],
-            text_color="#000000", corner_radius=6, font=FONT_LABEL_B,
+            text_color="#000000", corner_radius=_R_BTN, font=FONT_LABEL_B,
             command=lambda: self.on_push(p)
         )
         self.btn_push.pack(side="left", padx=(0, 8))
 
-        ctk.CTkButton(
-            btns, text="Log", width=60, height=34,
+        self.btn_log = ctk.CTkButton(
+            btns, text=t("card_btn_log"), width=60, height=34,
             fg_color=C["panel"], hover_color=C["card_hover"],
             text_color=C["text_dim"], border_color=C["border"], border_width=1,
-            corner_radius=6, font=FONT_SMALL,
+            corner_radius=_R_BTN, font=FONT_SMALL,
             command=lambda: self.on_log(p)
-        ).pack(side="left", padx=(0, 8))
+        )
+        self.btn_log.pack(side="left", padx=(0, 8))
 
-        ctk.CTkButton(
-            btns, text="Limpiar hist.", width=110, height=34,
+        self.btn_purge = ctk.CTkButton(
+            btns, text=t("card_btn_purge"), width=110, height=34,
             fg_color="#2a1010", hover_color="#6b1a1a",
-            text_color=C["red"], border_color="#6b1a1a", border_width=1,
-            corner_radius=6, font=FONT_SMALL,
+            text_color=C["danger"], border_color="#6b1a1a", border_width=1,
+            corner_radius=_R_BTN, font=FONT_SMALL,
             command=lambda: self.on_purge(p)
-        ).pack(side="left", padx=(0, 8))
+        )
+        self.btn_purge.pack(side="left", padx=(0, 8))
 
-        ctk.CTkButton(
-            btns, text="Fantasmas", width=90, height=34,
+        self.btn_ghosts = ctk.CTkButton(
+            btns, text=t("card_btn_ghosts"), width=90, height=34,
             fg_color=C["panel"], hover_color=C["card_hover"],
-            text_color=C["blue"], border_color=C["border"], border_width=1,
-            corner_radius=6, font=FONT_SMALL,
+            text_color=C["info"], border_color=C["border"], border_width=1,
+            corner_radius=_R_BTN, font=FONT_SMALL,
             command=lambda: self.on_ghost(p)
-        ).pack(side="left", padx=(0, 8))
+        )
+        self.btn_ghosts.pack(side="left", padx=(0, 8))
 
-        ctk.CTkButton(
-            btns, text="Cambios", width=80, height=34,
+        self.btn_changes = ctk.CTkButton(
+            btns, text=t("card_btn_changes"), width=80, height=34,
             fg_color=C["panel"], hover_color=C["card_hover"],
-            text_color=C["yellow"], border_color=C["border"], border_width=1,
-            corner_radius=6, font=FONT_SMALL,
+            text_color=C["warning"], border_color=C["border"], border_width=1,
+            corner_radius=_R_BTN, font=FONT_SMALL,
             command=lambda: self.on_changes(p)
-        ).pack(side="left", padx=(0, 8))
+        )
+        self.btn_changes.pack(side="left", padx=(0, 8))
 
-        ctk.CTkButton(
-            btns, text=".gitignore", width=88, height=34,
+        self.btn_gitignore = ctk.CTkButton(
+            btns, text=t("card_btn_gitignore"), width=88, height=34,
             fg_color=C["panel"], hover_color=C["card_hover"],
             text_color=C["text_dim"], border_color=C["border"], border_width=1,
-            corner_radius=6, font=FONT_SMALL,
+            corner_radius=_R_BTN, font=FONT_SMALL,
             command=lambda: self.on_gitignore(p)
-        ).pack(side="left")
+        )
+        self.btn_gitignore.pack(side="left")
 
     def _make_launcher_btn(self, parent, p: dict):
-        """Crea el botón de lanzador con icono o texto de fallback."""
+        """Creates the launcher button, with icon or fallback text."""
         exe  = p.get("launcher_exe")
         icon = p.get("launcher_icon")
 
@@ -239,7 +251,7 @@ class ProjectCard(ctk.CTkFrame):
         def on_right(_event=None):
             self._open_launcher_config()
 
-        # Intentar cargar imagen
+        # Try to load the image
         img = None
         if icon and os.path.isfile(icon) and _PIL_AVAILABLE:
             try:
@@ -276,9 +288,9 @@ class ProjectCard(ctk.CTkFrame):
         btn.bind("<Button-2>", on_right)
 
         if has_exe:
-            tip = f"Clic: lanzar  —  {os.path.basename(exe)}\nClic derecho: cambiar configuración"
+            tip = t("card_launcher_tooltip_configured", name=os.path.basename(exe))
         else:
-            tip = "Sin lanzador configurado\nClic para configurar"
+            tip = t("card_launcher_tooltip_empty")
         self._bind_tooltip(btn, tip)
         return btn
 
@@ -286,15 +298,15 @@ class ProjectCard(ctk.CTkFrame):
         try:
             os.startfile(exe)
         except Exception as e:
-            messagebox.showerror("Error al lanzar", str(e))
+            messagebox.showerror(t("card_launch_error_title"), str(e))
 
     def _open_launcher_config(self):
         if self.on_launcher:
             self.on_launcher(self.project)
 
     def refresh_launcher_btn(self):
-        """Reconstruye el botón del lanzador tras guardar cambios."""
-        # Recargar el proyecto desde disco
+        """Rebuilds the launcher button after settings are saved."""
+        # Reload the project from disk
         projects = pm.load_projects()
         proj = next((p for p in projects if p["id"] == self.project["id"]), None)
         if proj:
@@ -303,7 +315,7 @@ class ProjectCard(ctk.CTkFrame):
         p = self.project
         parent = self._launcher_btn.master
 
-        # Averiguar qué widget va justo antes en el pack order
+        # Find which widget comes right before it in the pack order
         slaves = parent.pack_slaves()
         idx = slaves.index(self._launcher_btn)
         prev = slaves[idx - 1] if idx > 0 else None
@@ -311,7 +323,7 @@ class ProjectCard(ctk.CTkFrame):
         self._launcher_btn.destroy()
         self._launcher_btn = self._make_launcher_btn(parent, p)
 
-        # Reposicionar en el mismo hueco usando 'after'
+        # Reposition in the same slot using 'after'
         if prev:
             self._launcher_btn.pack(side="left", padx=(0, 8), after=prev)
         else:
@@ -319,7 +331,7 @@ class ProjectCard(ctk.CTkFrame):
 
     @staticmethod
     def _bind_tooltip(widget, text: str):
-        """Tooltip minimalista con after / destroy."""
+        """Minimalist tooltip using after/destroy."""
         tip = None
 
         def show(_e):
@@ -332,7 +344,7 @@ class ProjectCard(ctk.CTkFrame):
             tip.wm_overrideredirect(True)
             tip.wm_geometry(f"+{x}+{y}")
             tk.Label(
-                tip, text=text, background="#1c1f24", foreground="#e8eaf0",
+                tip, text=text, background=C["card"], foreground=C["text"],
                 font=("Segoe UI", 11), padx=8, pady=4,
                 relief="flat", bd=0
             ).pack()
@@ -350,17 +362,17 @@ class ProjectCard(ctk.CTkFrame):
         widget.bind("<Leave>", hide)
 
     def update_dates(self):
-        """Recarga las fechas de push/pull desde el JSON sin recrear la tarjeta."""
+        """Reloads the push/pull dates from the JSON without recreating the card."""
         projects = pm.load_projects()
         proj = next((p for p in projects if p["id"] == self.project["id"]), None)
         if not proj:
             return
         self.project = proj
         try:
-            self.lbl_push.configure(text=f"↑ Push: {_fmt_date(proj.get('last_push'))}")
-            self.lbl_pull.configure(text=f"↓ Pull: {_fmt_date(proj.get('last_pull'))}")
+            self.lbl_push.configure(text=t("card_push_label", date=_fmt_date(proj.get("last_push"))))
+            self.lbl_pull.configure(text=t("card_pull_label", date=_fmt_date(proj.get("last_pull"))))
         except AttributeError:
-            pass  # sin repositorio git, las etiquetas no existen
+            pass  # no Git repository, these labels don't exist
 
     def _toggle(self):
         self._collapsed = not self._collapsed
@@ -383,21 +395,47 @@ class ProjectCard(ctk.CTkFrame):
         except Exception:
             pass
 
-    def refresh_status(self):
-        """Actualiza el estado en segundo plano."""
+    def refresh_language(self):
+        """
+        Re-reads every text on this card in the active language, without
+        destroying or recreating any widget (Design System §10 — language
+        switches live, unlike the theme).
+        """
         has_git = git.has_git_repo(self.project["path"])
         if not has_git:
-            self.status_label.configure(text="Sin repositorio Git", text_color=C["text_muted"])
+            if hasattr(self, "lbl_no_git"):
+                self.lbl_no_git.configure(text=t("card_no_git_repo"))
+            if hasattr(self, "btn_init_repo"):
+                self.btn_init_repo.configure(text=t("card_init_repo_btn"))
+            return
+
+        self.lbl_push.configure(text=t("card_push_label", date=_fmt_date(self.project.get("last_push"))))
+        self.lbl_pull.configure(text=t("card_pull_label", date=_fmt_date(self.project.get("last_pull"))))
+        self.btn_pull.configure(text=t("card_btn_pull"))
+        self.btn_push.configure(text=t("card_btn_push"))
+        self.btn_log.configure(text=t("card_btn_log"))
+        self.btn_purge.configure(text=t("card_btn_purge"))
+        self.btn_ghosts.configure(text=t("card_btn_ghosts"))
+        self.btn_changes.configure(text=t("card_btn_changes"))
+        self.btn_gitignore.configure(text=t("card_btn_gitignore"))
+        self.refresh_launcher_btn()  # regenerates the tooltip text too
+        self.refresh_status()        # re-translates the status label/dot
+
+    def refresh_status(self):
+        """Updates the status in the background."""
+        has_git = git.has_git_repo(self.project["path"])
+        if not has_git:
+            self.status_label.configure(text=t("card_no_git_repo"), text_color=C["text_muted"])
             try:
-                self.dot.configure(text_color=C["red"])
+                self.dot.configure(text_color=C["danger"])
             except Exception:
                 pass
             return
 
         if git.is_merging(self.project["path"]):
-            self.status_label.configure(text="⚠ Conflicto de merge sin resolver", text_color=C["red"])
+            self.status_label.configure(text=t("card_merge_conflict_status"), text_color=C["danger"])
             try:
-                self.dot.configure(text_color=C["red"])
+                self.dot.configure(text_color=C["danger"])
             except Exception:
                 pass
             return
@@ -411,7 +449,7 @@ class ProjectCard(ctk.CTkFrame):
                 dot_c = _dot_color(True, status)
             except Exception as e:
                 self.after(0, lambda: self.status_label.configure(
-                    text=f"Error al calcular estado: {e}", text_color=C["red"]
+                    text=t("card_status_error", error=e), text_color=C["danger"]
                 ))
                 return
             self.after(0, lambda: (

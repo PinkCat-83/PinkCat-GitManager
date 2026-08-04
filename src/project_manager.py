@@ -1,43 +1,49 @@
 """
 project_manager.py
-Gestión del JSON de proyectos: carga, guardado, añadir, eliminar.
+Management of the projects JSON: load, save, add, remove.
 
-El JSON activo se configura mediante app_config.json (data/app_config.json).
-Esto permite tener varios JSONs (por equipo, por contexto) y cambiar entre ellos.
+The active JSON path is configured MANUALLY by the user (e.g. a folder synced
+with Google Drive, Dropbox, etc., so the project list travels between several
+computers). There is no automatic default path: if none has been configured
+yet, the app must ask the user where the file will live before it can load or
+save anything (see GitManagerApp._first_run_setup in gui/app.py).
 """
 
 import json
 import os
+import shutil
 from datetime import datetime
 
-"""
-project_manager.py
-Gestión del JSON de proyectos: carga, guardado, añadir, eliminar.
-
-La ruta del JSON activo es de configuración MANUAL por parte del usuario
-(por ejemplo, una carpeta sincronizada con Google Drive, Dropbox, etc.,
-para que la lista de proyectos viaje entre varios ordenadores).
-No existe una ruta por defecto automática: si no se ha configurado,
-la app debe pedir al usuario que elija dónde vivirá el archivo antes
-de poder cargar o guardar nada (ver GitManagerApp._first_run_setup en app.py).
-"""
-
-import json
-import os
-from datetime import datetime
-
-# Configuración del sistema: %APPDATA%\GitManager\config.json
-# Existe por usuario en cualquier Windows, independiente de dónde esté la app.
-# Esto SÍ es automático — solo guarda un puntero a dónde está el projects.json real,
-# no el contenido en sí.
-_APPDATA_DIR = os.path.join(
-    os.getenv("APPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Roaming"),
-    "GitManager"
-)
+# System configuration: %APPDATA%\PinkCatGitManager\config.json
+# Exists per Windows user account, independent of where the app itself lives.
+# This part IS automatic — it only stores a pointer to where the real
+# projects.json lives, never the project data itself.
+_APPDATA_ROOT = os.getenv("APPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Roaming")
+_APPDATA_DIR = os.path.join(_APPDATA_ROOT, "PinkCatGitManager")
 _APP_CONFIG = os.path.join(_APPDATA_DIR, "config.json")
 
+# Folder used by versions prior to the "PinkCat" naming convention (point 12
+# of the audit checklist). Migrated automatically on first run so existing
+# users don't have to reconfigure the app.
+_LEGACY_APPDATA_DIR = os.path.join(_APPDATA_ROOT, "GitManager")
+_LEGACY_APP_CONFIG = os.path.join(_LEGACY_APPDATA_DIR, "config.json")
 
-# ─── Configuración del sistema (qué JSON está activo) ────────────────────────
+
+def _migrate_legacy_config() -> None:
+    """One-time copy of the pre-rename config.json into the new PinkCat-prefixed folder."""
+    if os.path.exists(_APP_CONFIG) or not os.path.exists(_LEGACY_APP_CONFIG):
+        return
+    try:
+        os.makedirs(_APPDATA_DIR, exist_ok=True)
+        shutil.copyfile(_LEGACY_APP_CONFIG, _APP_CONFIG)
+    except OSError:
+        pass
+
+
+_migrate_legacy_config()
+
+
+# ─── System configuration (active JSON, language, theme) ─────────────────────
 
 def _load_app_config() -> dict:
     os.makedirs(_APPDATA_DIR, exist_ok=True)
@@ -57,10 +63,7 @@ def _save_app_config(cfg: dict) -> None:
 
 
 def get_active_json_path() -> str:
-    """
-    Devuelve la ruta del JSON de proyectos actualmente activo,
-    o "" si el usuario todavía no ha elegido ninguna.
-    """
+    """Returns the path of the currently active projects JSON, or "" if none was chosen yet."""
     cfg = _load_app_config()
     path = cfg.get("active_projects_file", "")
     if path and os.path.isabs(path):
@@ -69,27 +72,50 @@ def get_active_json_path() -> str:
 
 
 def is_configured() -> bool:
-    """True si ya hay una ruta de projects.json elegida por el usuario."""
+    """True if the user has already chosen a projects.json path."""
     return bool(get_active_json_path())
 
 
 def set_active_json_path(path: str) -> None:
-    """Cambia el JSON activo y lo persiste en app_config.json."""
+    """Changes the active JSON and persists it to config.json."""
     cfg = _load_app_config()
     cfg["active_projects_file"] = os.path.normpath(os.path.abspath(path))
     _save_app_config(cfg)
 
 
-# ─── Lectura / escritura del JSON de proyectos ────────────────────────────────
+def get_active_language() -> str:
+    """Returns the active UI language name (see src/i18n.py), defaulting to Español."""
+    cfg = _load_app_config()
+    return cfg.get("language", "Español")
+
+
+def set_active_language(language: str) -> None:
+    cfg = _load_app_config()
+    cfg["language"] = language
+    _save_app_config(cfg)
+
+
+def get_active_theme() -> str:
+    """Returns the active theme name (see gui/theme_loader.py), defaulting to green."""
+    cfg = _load_app_config()
+    return cfg.get("theme", "green")
+
+
+def set_active_theme(theme: str) -> None:
+    cfg = _load_app_config()
+    cfg["theme"] = theme
+    _save_app_config(cfg)
+
+
+# ─── Projects JSON read / write ───────────────────────────────────────────────
 
 def _require_active_path() -> str:
-    """Devuelve la ruta activa o lanza un error claro si aún no se ha configurado."""
+    """Returns the active path, or raises a clear error if none is configured yet."""
     path = get_active_json_path()
     if not path:
         raise RuntimeError(
-            "No hay ningún archivo de proyectos configurado. "
-            "Llama a set_active_json_path() (o completa la configuración inicial "
-            "de la app) antes de cargar o guardar proyectos."
+            "No projects file is configured. Call set_active_json_path() "
+            "(or complete the app's initial setup) before loading or saving projects."
         )
     return path
 
@@ -110,9 +136,8 @@ def _save_raw(data: dict) -> None:
     data_file = _require_active_path()
     os.makedirs(os.path.dirname(data_file), exist_ok=True)
 
-    # Escritura atómica: se escribe primero a un temporal y se renombra al final,
-    # para que una carpeta sincronizada (Google Drive, Dropbox...) nunca vea
-    # el archivo a medio escribir.
+    # Atomic write: write to a temp file first, then rename into place, so a
+    # synced folder (Google Drive, Dropbox...) never observes a half-written file.
     tmp_file = data_file + ".tmp"
     with open(tmp_file, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -122,17 +147,17 @@ def _save_raw(data: dict) -> None:
 
 
 def load_projects() -> list[dict]:
-    """Devuelve la lista de proyectos guardados."""
+    """Returns the list of stored projects."""
     return _load_raw().get("projects", [])
 
 
 def save_projects(projects: list[dict]) -> None:
-    """Guarda la lista completa de proyectos."""
+    """Saves the full project list."""
     _save_raw({"projects": projects})
 
 
 def add_project(path: str, name: str = "") -> dict:
-    """Añade un proyecto nuevo. Devuelve el dict del proyecto."""
+    """Adds a new project. Returns the project dict."""
     projects = load_projects()
 
     path = os.path.normpath(os.path.abspath(path))
@@ -157,13 +182,13 @@ def add_project(path: str, name: str = "") -> dict:
 
 
 def remove_project(project_id: str) -> None:
-    """Elimina un proyecto por su id."""
+    """Removes a project by id."""
     projects = [p for p in load_projects() if p.get("id") != project_id]
     save_projects(projects)
 
 
 def update_project(project_id: str, **kwargs) -> None:
-    """Actualiza campos de un proyecto."""
+    """Updates fields on a project."""
     projects = load_projects()
     for p in projects:
         if p.get("id") == project_id:

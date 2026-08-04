@@ -1,8 +1,8 @@
-# ◈ Git Manager
+# ◈ PinkCat GitManager
 
 Visual Git repository manager for Windows. Built with CustomTkinter.
 
-> **Nota de alcance:** esta herramienta está pensada para un único usuario, como forma de organizar sus proyectos y acceder a ellos rápidamente desde una sola aplicación. Cubre las operaciones de Git más básicas (push, pull, status, log) — no está diseñada como cliente Git completo ni para flujos de colaboración multiusuario (resolución de conflictos, gestión de ramas avanzada, revisión de pull requests, etc.).
+> **Scope note:** this tool is built for a single user, as a way to organize your projects and reach them quickly from one app. It covers the most common Git operations (push, pull, status, log) — it is not meant as a full Git client or for multi-user collaboration workflows (conflict resolution, advanced branch management, pull request review, etc.).
 
 ---
 
@@ -17,6 +17,7 @@ A simple GUI for the Git operations used most often — push, pull, status, and 
 - Python 3.10+
 - Git installed and in the system PATH
 - `pip install customtkinter pillow`
+- Spanish and English available from the **Settings → Language** menu — applies immediately, no restart needed. The theme (Green / Pink / Pro) is switchable from **Settings → Theme**, but that one does need a restart to apply.
 
 ---
 
@@ -48,21 +49,27 @@ Double-click to launch (no console window). Make sure the requirements below are
 ## File Structure
 
 ```
-GitManager/
-├── GitManager.pyw           # Entry point — double-click to launch
+PinkCat GitManager/
+├── PinkCat GitManager.pyw    # Entry point — double-click to launch
 ├── gui/
-│   ├── app.py                 # Main window (GitManagerApp) — layout & callback wiring
-│   ├── theme.py                # Color palette, fonts, status/format helpers
+│   ├── app.py                 # Main window (GitManagerApp) — layout, menu & callback wiring
+│   ├── theme.py                # Active color palette, fonts, status/format helpers
+│   ├── theme_loader.py          # get_theme(name) — single access point for gui/themes/*
+│   ├── themes/                  # green.py / pink.py / pro.py palettes
 │   ├── base.py                 # Shared base class for all dialogs
 │   ├── dialogs.py               # Action dialogs (commit, conflict, init, first-run, launcher, purge)
 │   ├── project_card.py          # The project card widget
 │   └── windows.py                # Detail windows (log, ghost files, changes, .gitignore)
 ├── src/
 │   ├── git_operations.py     # Git logic (init, fetch, merge, push, status…)
-│   └── project_manager.py    # Project JSON management
+│   ├── project_manager.py    # Project JSON management + app settings (language, theme)
+│   └── i18n.py                # Loads language/translations.csv, exposes t(key)
+├── language/
+│   └── translations.csv      # UI text, one row per key, one column per language
 ├── ico/
-│   ├── PinkCat-GuitManager.ico
-│   └── PinkCat-GuitManager.png
+│   ├── PinkCat-GitManager.ico
+│   ├── PinkCat-GitManager.png
+│   └── PinkCat-Mascot.png     # Mascot logo shown top-right in the title bar
 ├── README.md
 └── README_TECH.md
 ```
@@ -71,7 +78,7 @@ GitManager/
 
 ## Notes
 
-- There is no automatic default location for the project list — the first time you run the app, it asks you to pick an existing `projects.json` or create a new one. The file can be named anything you like, and you can keep several (e.g. `work.json`, `personal.json`) by switching with the 📁 button in the header.
+- There is no automatic default location for the project list — the first time you run the app, it asks you to pick an existing `projects.json` or create a new one. The file can be named anything you like, and you can keep several (e.g. `work.json`, `personal.json`) by switching from **Settings → 📁 Projects file** in the menu.
 - The project list is stored as JSON — it only holds paths and dates, and never moves or deletes the files it references.
 - Removing a project from the list **does not delete** its files.
 - `pillow` is required to display custom launcher icons. Without it the launcher still works, showing a ▶ symbol instead.

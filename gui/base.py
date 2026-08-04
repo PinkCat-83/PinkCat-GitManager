@@ -1,13 +1,13 @@
 """
 base.py
-Clase base compartida por todos los diálogos (Toplevel) de la app.
+Shared base class for every dialog (Toplevel) in the app.
 """
 
 import customtkinter as ctk
 
-# Ventana base para todos los dialogos - garantiza foco en Windows
+
 class BaseDialog(ctk.CTkToplevel):
-    """Clase base. Garantiza que los diálogos aparezcan al frente en Windows."""
+    """Base window. Ensures dialogs come to the front and grab focus on Windows."""
     def _grab_focus(self):
         try:
             self.attributes("-topmost", False)

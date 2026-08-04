@@ -1,16 +1,18 @@
 """
 git_operations.py
-Módulo encargado de todas las operaciones Git del proyecto.
+Module responsible for every Git operation used by the app.
 """
 
 import subprocess
 import os
 from datetime import datetime
 
+from src.i18n import t
+
 
 def _run(cmd: list[str], cwd: str) -> tuple[int, str, str]:
-    """Ejecuta un comando git y devuelve (returncode, stdout, stderr)."""
-    # En Windows, evita que cada subproceso abra una ventana de consola
+    """Runs a git command and returns (returncode, stdout, stderr)."""
+    # On Windows, avoid a console window popping up for every subprocess.
     _flags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
     try:
         result = subprocess.run(
@@ -25,26 +27,26 @@ def _run(cmd: list[str], cwd: str) -> tuple[int, str, str]:
         )
         return result.returncode, result.stdout.strip(), result.stderr.strip()
     except subprocess.TimeoutExpired:
-        return -1, "", "Tiempo de espera agotado."
+        return -1, "", t("git_timeout")
     except Exception as e:
         return -1, "", str(e)
 
 
 def has_git_repo(path: str) -> bool:
-    """Comprueba si la carpeta tiene un repositorio Git (.git)."""
+    """Checks whether the folder has a Git repository (.git)."""
     return os.path.isdir(os.path.join(path, ".git"))
 
 
 def init_repo(path: str) -> tuple[bool, str]:
-    """Inicializa un repositorio Git en la carpeta (git init)."""
+    """Initializes a Git repository in the folder (git init)."""
     code, out, err = _run(["git", "init"], path)
     if code == 0:
-        return True, out or "Repositorio inicializado."
-    return False, err or "Error al inicializar el repositorio."
+        return True, out or t("git_init_ok")
+    return False, err or t("git_init_err")
 
 
 def add_remote(path: str, url: str, name: str = "origin") -> tuple[bool, str]:
-    """Añade un remoto, o actualiza su URL si ya existe."""
+    """Adds a remote, or updates its URL if it already exists."""
     code, out, _ = _run(["git", "remote"], path)
     existing = out.splitlines() if code == 0 else []
     if name in existing:
@@ -52,14 +54,14 @@ def add_remote(path: str, url: str, name: str = "origin") -> tuple[bool, str]:
     else:
         code2, out2, err2 = _run(["git", "remote", "add", name, url], path)
     if code2 == 0:
-        return True, f"Remoto '{name}' configurado: {url}"
-    return False, err2 or f"Error al configurar el remoto '{name}'."
+        return True, t("git_remote_set_ok", name=name, url=url)
+    return False, err2 or t("git_remote_set_err", name=name)
 
 
 def init_repo_with_remote(path: str, remote_url: str = "") -> tuple[bool, str]:
     """
-    Inicializa un repositorio y, si se indica una URL, configura el remoto 'origin'.
-    remote_url puede ir vacío: en ese caso solo se hace git init.
+    Initializes a repository and, if given, configures the 'origin' remote.
+    remote_url may be empty: in that case only git init runs.
     """
     ok, msg = init_repo(path)
     if not ok:
@@ -68,31 +70,31 @@ def init_repo_with_remote(path: str, remote_url: str = "") -> tuple[bool, str]:
     if remote_url:
         ok2, msg2 = add_remote(path, remote_url)
         if not ok2:
-            return False, f"Repositorio inicializado, pero falló la configuración del remoto:\n{msg2}"
+            return False, t("git_init_with_remote_err", msg=msg2)
         return True, f"{msg}\n{msg2}"
-    return True, f"{msg}\nSin remoto configurado — añádelo más tarde con 'git remote add origin <url>'."
+    return True, f"{msg}\n{t('git_init_no_remote')}"
 
 
 def get_current_branch(path: str) -> str:
-    """Devuelve la rama actual."""
+    """Returns the current branch."""
     code, out, _ = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"], path)
-    return out if code == 0 else "desconocida"
+    return out if code == 0 else t("git_unknown_branch")
 
 
 def get_remote_url(path: str) -> str:
-    """Devuelve la URL del remoto origin."""
+    """Returns the URL of the origin remote."""
     code, out, _ = _run(["git", "remote", "get-url", "origin"], path)
     return out if code == 0 else ""
 
 
 def get_last_commit_info(path: str) -> dict:
-    """Devuelve información del último commit local."""
+    """Returns information about the latest local commit."""
     code, out, _ = _run(
         ["git", "log", "-1", "--format=%H|%s|%ai|%an"],
         path,
     )
     if code != 0 or not out:
-        return {"hash": "", "message": "Sin commits", "date": "", "author": ""}
+        return {"hash": "", "message": "", "date": "", "author": ""}
     parts = out.split("|", 3)
     return {
         "hash": parts[0][:7] if len(parts) > 0 else "",
@@ -104,15 +106,15 @@ def get_last_commit_info(path: str) -> dict:
 
 def get_status(path: str) -> dict:
     """
-    Devuelve el estado completo del repositorio clasificando cada cambio:
-    - new_files:      archivos nuevos sin seguimiento (??)
-    - modified:       archivos modificados (M, R, C...)
-    - deleted:        archivos borrados localmente (D)
-    - staged:         cambios en el área de stage (index)
-    - ahead:          commits locales no subidos al remoto
-    - behind:         commits del remoto no bajados (requiere fetch previo)
-    - is_dirty:       True si hay cualquier cambio sin commitear
-    - has_remote:     True si hay un remoto configurado
+    Returns the full repository status, classifying each change:
+    - new_files:      untracked new files (??)
+    - modified:       modified files (M, R, C...)
+    - deleted:        files deleted locally (D)
+    - staged:         changes in the index (staged)
+    - ahead:          local commits not yet pushed to the remote
+    - behind:         remote commits not yet pulled (requires a prior fetch)
+    - is_dirty:       True if there is any uncommitted change
+    - has_remote:     True if a remote is configured
     """
     code, out, _ = _run(["git", "status", "--porcelain"], path)
     lines = [l for l in out.splitlines() if l.strip()] if code == 0 else []
@@ -125,7 +127,7 @@ def get_status(path: str) -> dict:
     for line in lines:
         if len(line) < 2:
             continue
-        x, y = line[0], line[1]   # x = índice (staged), y = working tree
+        x, y = line[0], line[1]   # x = index (staged), y = working tree
         filepath = line[3:].strip()
 
         if x == "?" and y == "?":
@@ -138,14 +140,14 @@ def get_status(path: str) -> dict:
             else:
                 modified.append(filepath)
 
-    # Commits sin subir (ahead)
+    # Commits not yet pushed (ahead)
     code2, out2, _ = _run(["git", "rev-list", "--count", "@{u}..HEAD"], path)
     try:
         ahead = int(out2) if code2 == 0 else 0
     except ValueError:
         ahead = 0
 
-    # Commits sin bajar (behind) — solo con fetch previo
+    # Commits not yet pulled (behind) — only accurate after a fetch
     code3, out3, _ = _run(["git", "rev-list", "--count", "HEAD..@{u}"], path)
     try:
         behind = int(out3) if code3 == 0 else 0
@@ -171,77 +173,74 @@ def get_status(path: str) -> dict:
 
 
 def is_merging(path: str) -> bool:
-    """True si el repo está en medio de un merge sin resolver."""
+    """True if the repo is in the middle of an unresolved merge."""
     return os.path.isfile(os.path.join(path, ".git", "MERGE_HEAD"))
 
 
 def get_conflicted_files(path: str) -> list[str]:
-    """Devuelve los archivos con conflictos sin resolver."""
+    """Returns the files with unresolved conflicts."""
     code, out, _ = _run(["git", "diff", "--name-only", "--diff-filter=U"], path)
     return out.splitlines() if code == 0 else []
 
 
 def do_merge_abort(path: str) -> tuple[bool, str]:
-    """Aborta un merge en curso y devuelve el repo a su estado previo."""
+    """Aborts an in-progress merge and returns the repo to its previous state."""
     code, out, err = _run(["git", "merge", "--abort"], path)
     if code == 0:
-        return True, "Merge abortado. El repositorio volvió a su estado anterior al Pull."
-    return False, err or "No se pudo abortar el merge."
+        return True, t("git_merge_abort_ok")
+    return False, err or t("git_merge_abort_err")
 
 
 def do_fetch(path: str) -> tuple[bool, str]:
-    """Hace git fetch."""
+    """Runs git fetch."""
     code, out, err = _run(["git", "fetch"], path)
     if code == 0:
-        return True, out or "Fetch completado."
-    return False, err or "Error en fetch."
+        return True, out or t("git_fetch_ok")
+    return False, err or t("git_fetch_err")
 
 
 def do_merge(path: str) -> tuple[bool, str]:
-    """Hace git merge FETCH_HEAD."""
+    """Runs git merge FETCH_HEAD."""
     code, out, err = _run(["git", "merge", "FETCH_HEAD"], path)
     if code == 0:
-        return True, out or "Merge completado."
+        return True, out or t("git_merge_ok")
     if is_merging(path):
         conflicts = get_conflicted_files(path)
-        files_list = "\n".join(f"  • {f}" for f in conflicts) or "  (no se detectaron archivos, revisa manualmente)"
-        return False, (
-            "Conflicto de merge sin resolver.\n\n"
-            f"Archivos en conflicto:\n{files_list}"
-        )
-    return False, err or "Error en merge."
+        files_list = "\n".join(f"  • {f}" for f in conflicts) or t("merge_conflict_no_files")
+        return False, t("git_merge_conflict", files=files_list)
+    return False, err or t("git_merge_err")
 
 
 def do_fetch_and_merge(path: str) -> tuple[bool, str]:
-    """Fetch + Merge en secuencia."""
+    """Fetch + Merge in sequence."""
     ok, msg = do_fetch(path)
     if not ok:
-        return False, f"Fetch falló: {msg}"
+        return False, t("git_fetch_failed", msg=msg)
     ok2, msg2 = do_merge(path)
     if not ok2:
-        return False, f"Fetch OK. Merge falló: {msg2}"
-    return True, f"Fetch y merge completados.\n{msg2}"
+        return False, t("git_fetch_ok_merge_failed", msg=msg2)
+    return True, t("git_fetch_merge_ok", msg=msg2)
 
 
 def _push(path: str) -> tuple[bool, str]:
     """
-    Ejecuta git push. Si la rama actual no tiene upstream configurado
-    (típico en el primer push de un repo recién inicializado), reintenta
-    automáticamente con --set-upstream origin <rama>.
+    Runs git push. If the current branch has no upstream configured yet
+    (typical on a repo's first push, or right after git init + remote add),
+    it automatically retries with --set-upstream origin <branch>.
     """
     code, out, err = _run(["git", "push"], path)
     if code == 0:
-        return True, out or "Push exitoso."
+        return True, out or t("git_push_ok")
 
     if "has no upstream branch" in err or "set-upstream" in err:
         branch_code, branch, _ = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"], path)
         branch = branch if branch_code == 0 and branch else "HEAD"
         code2, out2, err2 = _run(["git", "push", "--set-upstream", "origin", branch], path)
         if code2 == 0:
-            return True, out2 or f"Push exitoso. Upstream configurado: origin/{branch}."
-        return False, err2 or out2 or "Error en push (tras configurar upstream)."
+            return True, out2 or t("git_push_upstream_ok", branch=branch)
+        return False, err2 or out2 or t("git_push_upstream_err")
 
-    return False, err or out or "Error en push."
+    return False, err or out or t("git_push_err")
 
 
 def do_add_commit_push(path: str, message: str = "") -> tuple[bool, str]:
@@ -249,32 +248,32 @@ def do_add_commit_push(path: str, message: str = "") -> tuple[bool, str]:
     # Add
     code, _, err = _run(["git", "add", "-A"], path)
     if code != 0:
-        return False, f"Error en git add: {err}"
+        return False, t("git_add_err", err=err)
 
     # Commit
     if not message:
-        message = f"Actualización automática: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+        message = t("default_commit_message", datetime=datetime.now().strftime("%d/%m/%Y %H:%M"))
     code2, out2, err2 = _run(["git", "commit", "-m", message], path)
     if code2 != 0:
-        # Puede ser "nothing to commit" — puede haber igualmente commits locales
-        # sin subir, así que se intenta el push de todas formas.
+        # Might be "nothing to commit" — there could still be local commits
+        # that haven't been pushed, so push is attempted anyway.
         if "nothing to commit" in (out2 + err2).lower():
             ok, msg = _push(path)
             if ok:
-                return True, f"Nada que commitear.\n{msg}"
-            return False, f"Nada que commitear. Error en push: {msg}"
-        return False, f"Error en git commit: {err2 or out2}"
+                return True, t("git_nothing_to_commit_pushed", msg=msg)
+            return False, t("git_nothing_to_commit_push_failed", msg=msg)
+        return False, t("git_commit_err", err=err2 or out2)
 
     # Push
     ok, msg = _push(path)
     if not ok:
-        return False, f"Commit OK. Error en push: {msg}"
+        return False, t("git_push_after_commit_err", msg=msg)
 
-    return True, f"Commit y push completados.\n{msg}"
+    return True, t("git_commit_push_ok", msg=msg)
 
 
 def get_log(path: str, n: int = 10) -> list[dict]:
-    """Devuelve los últimos n commits."""
+    """Returns the last n commits."""
     code, out, _ = _run(
         ["git", "log", f"-{n}", "--format=%H|%s|%ai|%an"],
         path,
@@ -296,14 +295,14 @@ def get_log(path: str, n: int = 10) -> list[dict]:
 
 def purge_from_history(repo_path: str, target: str, is_folder: bool) -> tuple[bool, str]:
     """
-    Elimina un archivo o carpeta del historial completo de Git usando filter-branch.
-    target: ruta relativa al repo (ej: "secrets/passwords.txt" o "build/")
-    is_folder: True si es carpeta, False si es archivo.
-    Devuelve (ok, mensaje).
+    Removes a file or folder from the entire Git history using filter-branch.
+    target: path relative to the repo (e.g. "secrets/passwords.txt" or "build/")
+    is_folder: True if it's a folder, False if it's a file.
+    Returns (ok, message).
     """
     import shutil
 
-    # Construir el filtro adecuado
+    # Build the appropriate filter
     if is_folder:
         filter_cmd = f'git rm -rf --cached --ignore-unmatch "{target}"'
     else:
@@ -326,36 +325,32 @@ def purge_from_history(repo_path: str, target: str, is_folder: bool) -> tuple[bo
     if code != 0:
         return False, "\n".join(l for l in output_lines if l)
 
-    # Limpiar refs de respaldo que deja filter-branch
+    # Clean up the backup refs left behind by filter-branch
     backup_ref = os.path.join(repo_path, ".git", "refs", "original")
     if os.path.isdir(backup_ref):
         shutil.rmtree(backup_ref, ignore_errors=True)
 
-    # Expirar reflog y gc agresivo para liberar objetos huerfanos
+    # Expire the reflog and run an aggressive gc to free orphaned objects
     _run(["git", "reflog", "expire", "--expire=now", "--all"], repo_path)
     _run(["git", "gc", "--prune=now", "--aggressive"], repo_path)
 
-    tipo = "Carpeta" if is_folder else "Archivo"
-    msg = (
-        f"{tipo}  \"{target}\"  eliminado del historial completo.\n\n"
-        "Objetos huerfanos limpiados (reflog + gc).\n\n"
-        "SIGUIENTE PASO OBLIGATORIO:\n"
-        "Haz un Push forzado para actualizar GitHub:\n\n"
-        "  git push origin --force --all\n\n"
-        "Puedes ejecutarlo desde la terminal en la carpeta del proyecto.\n\n"
-        "─────────────────────────────────────\n"
-        + "\n".join(l for l in output_lines if l)
+    kind = t("purge_type_folder") if is_folder else t("purge_type_file")
+    msg = t(
+        "git_purge_result",
+        type=kind.capitalize(),
+        target=target,
+        output="\n".join(l for l in output_lines if l),
     )
     return True, msg
 
 
 def get_deleted_files(repo_path: str) -> list[dict]:
     """
-    Devuelve todos los archivos que existieron en el historial pero
-    ya no están en la rama actual (HEAD).
-    Cada entrada: {path, hash_delete, date_delete, commit_msg, hash_last_alive}
+    Returns every file that existed in the history but is no longer present
+    on the current branch (HEAD).
+    Each entry: {path, hash_delete, date_delete, commit_msg, hash_full}
     """
-    # Obtener todos los archivos borrados del historial con su commit de borrado
+    # Get every file deleted anywhere in the history, with the commit that deleted it
     code, out, _ = _run(
         [
             "git", "log", "--all", "--full-history",
@@ -368,7 +363,7 @@ def get_deleted_files(repo_path: str) -> list[dict]:
     if code != 0 or not out:
         return []
 
-    # Obtener archivos que SÍ existen ahora en HEAD (para excluirlos)
+    # Files that DO exist right now on HEAD (to exclude them)
     code2, out2, _ = _run(
         ["git", "ls-tree", "-r", "--name-only", "HEAD"],
         repo_path,
@@ -392,11 +387,11 @@ def get_deleted_files(repo_path: str) -> list[dict]:
             }
         else:
             filepath = line
-            # Solo incluir si no existe actualmente
+            # Only include it if it doesn't currently exist
             if filepath and filepath not in current_files:
-                # Evitar duplicados (quedarse con el borrado más reciente)
+                # Avoid duplicates (keep the most recent deletion)
                 if not any(d["path"] == filepath for d in deleted):
-                    # Buscar el último commit donde el archivo estaba vivo
+                    # Find the last commit where the file was still alive
                     code3, out3, _ = _run(
                         ["git", "log", "--all", "--diff-filter=A",
                          "--format=%H", "--follow", "--", filepath],
@@ -418,31 +413,25 @@ def get_deleted_files(repo_path: str) -> list[dict]:
 
 def restore_deleted_file(repo_path: str, filepath: str, hash_full: str) -> tuple[bool, str]:
     """
-    Recupera un archivo borrado del historial.
-    Usa el commit justo anterior al de borrado para obtener la última versión viva.
+    Recovers a deleted file from the history.
+    Uses the commit right before the deletion to get the last live version.
     """
-    # El archivo estaba vivo en el commit PADRE del que lo borró
+    # The file was alive in the PARENT commit of the one that deleted it
     code, out, err = _run(
         ["git", "checkout", f"{hash_full}^", "--", filepath],
         repo_path,
     )
     if code == 0:
-        return True, (
-            f"Archivo recuperado: {filepath}\n\n"
-            f"El archivo ha vuelto a tu carpeta local.\n"
-            f"Ahora aparecera como 'modificado' en git status.\n"
-            f"Haz un Push cuando quieras subirlo de nuevo a GitHub."
-        )
-    return False, f"No se pudo recuperar el archivo.\n\n{err or out}"
+        return True, t("git_restore_ok", path=filepath)
+    return False, t("git_restore_err", err=err or out)
 
 
 def get_gitignore_data(repo_path: str) -> dict:
     """
-    Lee el .gitignore y detecta qué archivos/carpetas del repositorio
-    remoto coinciden con alguna regla del .gitignore.
-    Devuelve:
-      - rules:    lista de reglas del .gitignore (sin comentarios ni vacíos)
-      - tracked:  archivos en HEAD que coinciden con alguna regla
+    Reads the .gitignore and detects which tracked files match one of its rules.
+    Returns:
+      - rules:    list of .gitignore rules (comments and blank lines removed)
+      - tracked:  files on HEAD that match a rule
       - gitignore_exists: bool
     """
     import fnmatch
@@ -451,7 +440,7 @@ def get_gitignore_data(repo_path: str) -> dict:
     if not os.path.exists(gitignore_path):
         return {"rules": [], "tracked": [], "gitignore_exists": False}
 
-    # Leer reglas
+    # Read the rules
     with open(gitignore_path, "r", encoding="utf-8", errors="replace") as f:
         raw_lines = f.readlines()
 
@@ -461,22 +450,22 @@ def get_gitignore_data(repo_path: str) -> dict:
         if stripped and not stripped.startswith("#"):
             rules.append(stripped)
 
-    # Archivos actualmente en el índice (staged/tracked)
-    # ls-files es más fiable que ls-tree para rm --cached
+    # Files currently in the index (staged/tracked)
+    # ls-files is more reliable than ls-tree for rm --cached
     code, out, _ = _run(
         ["git", "ls-files"],
         repo_path,
     )
     tracked_files = out.splitlines() if code == 0 else []
 
-    # Comprobar cuáles coinciden con alguna regla del .gitignore
+    # Check which ones match a .gitignore rule
     matches = []
     for filepath in tracked_files:
         filename = os.path.basename(filepath)
         for rule in rules:
-            # Normalizar regla
+            # Normalize the rule
             rule_clean = rule.lstrip("/").rstrip("/")
-            # Comparar contra nombre de archivo, ruta completa y segmentos
+            # Compare against the filename, the full path, and path segments
             if (
                 fnmatch.fnmatch(filename,  rule_clean) or
                 fnmatch.fnmatch(filepath,  rule_clean) or
@@ -488,7 +477,7 @@ def get_gitignore_data(repo_path: str) -> dict:
                     "file":  filepath,
                     "rule":  rule,
                 })
-                break  # Una regla que coincide es suficiente
+                break  # One matching rule is enough
 
     return {
         "rules":            rules,

@@ -7,3 +7,10 @@ _*
 
 # Ignorar todos los archivos con extensión .bat
 *.bat
+
+# Ignorar la carpeta local de Claude Code (config/sesión específica de esta máquina)
+.claude/
+
+# Ignorar los archivos compilados de Python (se subieron por error en una versión anterior)
+__pycache__/
+*.pyc
