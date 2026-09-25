@@ -9,6 +9,7 @@ import customtkinter as ctk
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import os
+import queue
 
 from src.i18n import t
 from gui.theme import C, FONT_MONO, FONT_MONO_S, FONT_LABEL, FONT_LABEL_B, FONT_SMALL, FONT_BIG
@@ -63,6 +64,127 @@ class OutputWindow(BaseDialog):
         self.destroy()
         if cb:
             cb()
+
+
+# ─── Live progress window ─────────────────────────────────────────────────────
+class ProgressWindow(BaseDialog):
+    """
+    Shows the live output of a long-running Git operation (e.g. push).
+
+    push_line() is thread-safe (it only enqueues), so the Git worker thread
+    can call it directly; the window drains the queue on the Tk main thread.
+    finish() must be called from the main thread once the operation is over.
+    """
+    _POLL_MS = 80
+
+    def __init__(self, master, title: str):
+        super().__init__(master)
+        self._op_title = title
+        self._queue: "queue.Queue[tuple[str, bool]]" = queue.Queue()
+        self._alive = True
+        self._finished = False
+        self._last_is_progress = False
+
+        self.title(title)
+        self.geometry("620x420")
+        self.resizable(True, True)
+        self.configure(fg_color=C["bg"])
+        self.transient(master)
+        self.lift()
+        self.attributes("-topmost", True)
+        self.after(100, self._grab_focus)
+        self.protocol("WM_DELETE_WINDOW", self._close)
+
+        self._header = ctk.CTkLabel(
+            self, text=f"⏳  {title}", font=FONT_BIG, text_color=C["info"]
+        )
+        self._header.pack(padx=20, pady=(18, 4), anchor="w")
+
+        self._hint = ctk.CTkLabel(
+            self, text=t("progress_hint"), font=FONT_SMALL, text_color=C["text_dim"]
+        )
+        self._hint.pack(padx=20, pady=(0, 6), anchor="w")
+
+        self._bar = ctk.CTkProgressBar(
+            self, mode="indeterminate",
+            fg_color=C["border"], progress_color=C["accent"], height=6
+        )
+        self._bar.pack(fill="x", padx=20, pady=(0, 10))
+        self._bar.start()
+
+        self._box = ctk.CTkTextbox(
+            self, font=FONT_MONO_S,
+            fg_color=C["panel"], text_color=C["text"],
+            border_color=C["border"], border_width=1,
+            corner_radius=_R_CARD
+        )
+        self._box.pack(fill="both", expand=True, padx=20, pady=(0, 12))
+        self._box.configure(state="disabled")
+
+        self._btn_close = ctk.CTkButton(
+            self, text=t("btn_close"), command=self._close,
+            fg_color=C["border"], hover_color=C["card_hover"],
+            text_color=C["text"], corner_radius=_R_BTN, height=34
+        )
+        self._btn_close.pack(pady=(0, 16))
+
+        self.after(self._POLL_MS, self._poll)
+
+    # ── Public API ──
+    @property
+    def is_open(self) -> bool:
+        return self._alive
+
+    def push_line(self, text: str, is_progress: bool = False):
+        """Thread-safe: queues a line to be shown by the main thread."""
+        self._queue.put((text, is_progress))
+
+    def finish(self, ok: bool, message: str):
+        """Main thread only: flushes pending lines and shows the final result."""
+        if not self._alive:
+            return
+        self._drain()
+        self._finished = True
+        self._bar.stop()
+        self._bar.pack_forget()
+        self._hint.pack_forget()
+        icon = "✓" if ok else "✗"
+        self._header.configure(
+            text=f"{icon}  {self._op_title}",
+            text_color=C["success"] if ok else C["danger"],
+        )
+        self._append("─" * 40, False)
+        self._append(message, False)
+
+    # ── Internals ──
+    def _poll(self):
+        if not self._alive:
+            return
+        self._drain()
+        if not self._finished:
+            self.after(self._POLL_MS, self._poll)
+
+    def _drain(self):
+        try:
+            while True:
+                text, is_progress = self._queue.get_nowait()
+                self._append(text, is_progress)
+        except queue.Empty:
+            pass
+
+    def _append(self, text: str, is_progress: bool):
+        self._box.configure(state="normal")
+        if self._last_is_progress:
+            # Overwrite the previous in-place progress line (Git's "\r" updates)
+            self._box.delete("end-1c linestart", "end-1c")
+        self._box.insert("end", text if is_progress else text + "\n")
+        self._box.configure(state="disabled")
+        self._box.see("end")
+        self._last_is_progress = is_progress
+
+    def _close(self):
+        self._alive = False
+        self.destroy()
 
 
 # ─── Commit dialog ────────────────────────────────────────────────────────────

@@ -207,3 +207,10 @@ default_commit_message;Actualización automática: {datetime};Automatic update: 
 git_purge_result;{type}  "{target}"  eliminado del historial completo.\n\nObjetos huérfanos limpiados (reflog + gc).\n\nSIGUIENTE PASO OBLIGATORIO:\nHaz un Push forzado para actualizar GitHub:\n\n  git push origin --force --all\n\nPuedes ejecutarlo desde la terminal en la carpeta del proyecto.\n\n─────────────────────────────────────\n{output};{type}  "{target}"  removed from the entire history.\n\nOrphaned objects cleaned up (reflog + gc).\n\nMANDATORY NEXT STEP:\nDo a forced Push to update GitHub:\n\n  git push origin --force --all\n\nYou can run it from the terminal in the project folder.\n\n─────────────────────────────────────\n{output}
 git_restore_ok;Archivo recuperado: {path}\n\nEl archivo ha vuelto a tu carpeta local.\nAhora aparecerá como 'modificado' en git status.\nHaz un Push cuando quieras subirlo de nuevo a GitHub.;File recovered: {path}\n\nThe file is back in your local folder.\nIt will now show as 'modified' in git status.\nDo a Push whenever you want to upload it to GitHub again.
 git_restore_err;No se pudo recuperar el archivo.\n\n{err};Could not recover the file.\n\n{err}
+git_idle_timeout;Sin actividad de Git durante {seconds} s. Operación cancelada.;No Git activity for {seconds} s. Operation cancelled.
+progress_hint;Subiendo... puedes seguir el avance aquí. No hay límite de tiempo total.;Uploading... you can follow the progress here. There is no total time limit.
+progress_step_add;▸ Preparando archivos (git add)...;▸ Staging files (git add)...
+progress_step_commit;▸ Creando commit...;▸ Creating commit...
+progress_step_push;▸ Subiendo a GitHub (git push)...;▸ Uploading to GitHub (git push)...
+progress_files_header;Archivos a subir ({n}):;Files to upload ({n}):
+progress_files_more;  ... y {n} más;  ... and {n} more

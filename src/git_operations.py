@@ -5,15 +5,34 @@ Module responsible for every Git operation used by the app.
 
 import subprocess
 import os
+import queue
+import re
+import threading
+import time
 from datetime import datetime
+from typing import Callable, Optional
 
 from src.i18n import t
 
+# Callback used to stream live output to the UI: (text, is_progress).
+# is_progress=True means the line is an in-place progress update (Git ends
+# those with "\r"), so the UI should overwrite the previous progress line.
+# It is called from the worker thread — the receiver must be thread-safe.
+LineCallback = Optional[Callable[[str, bool], None]]
 
-def _run(cmd: list[str], cwd: str) -> tuple[int, str, str]:
-    """Runs a git command and returns (returncode, stdout, stderr)."""
+_DEFAULT_TIMEOUT = 30          # quick commands (status, rev-parse, ...)
+_ADD_COMMIT_TIMEOUT = 600      # git add -A / git commit on big folders
+_PUSH_IDLE_TIMEOUT = 180       # push is cancelled only after this many seconds of silence
+_MAX_LISTED_FILES = 200        # cap for the "files to upload" list shown live
+
+
+def _no_window_flags() -> int:
     # On Windows, avoid a console window popping up for every subprocess.
-    _flags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+    return subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+
+
+def _run(cmd: list[str], cwd: str, timeout: Optional[int] = _DEFAULT_TIMEOUT) -> tuple[int, str, str]:
+    """Runs a git command and returns (returncode, stdout, stderr)."""
     try:
         result = subprocess.run(
             cmd,
@@ -22,14 +41,121 @@ def _run(cmd: list[str], cwd: str) -> tuple[int, str, str]:
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=30,
-            creationflags=_flags,
+            timeout=timeout,
+            creationflags=_no_window_flags(),
         )
         return result.returncode, result.stdout.strip(), result.stderr.strip()
     except subprocess.TimeoutExpired:
         return -1, "", t("git_timeout")
     except Exception as e:
         return -1, "", str(e)
+
+
+def _notify(on_line: LineCallback, text: str, is_progress: bool = False) -> None:
+    """Sends a line to the UI callback, never letting a UI error break Git."""
+    if on_line is None:
+        return
+    try:
+        on_line(text, is_progress)
+    except Exception:
+        pass
+
+
+def _run_streaming(
+    cmd: list[str],
+    cwd: str,
+    on_line: LineCallback = None,
+    idle_timeout: Optional[int] = _PUSH_IDLE_TIMEOUT,
+) -> tuple[int, str]:
+    """
+    Runs a git command reading its output live (stdout + stderr merged).
+
+    There is no total time limit: the command is only killed if it stays
+    completely silent for `idle_timeout` seconds, so a long but active
+    upload is never cut off. Returns (returncode, output) where output holds
+    the completed ("\\n"-terminated) lines only, not the in-place progress
+    updates.
+    """
+    env = os.environ.copy()
+    # Never wait for a terminal credentials prompt: there is no console to
+    # answer it, so it would hang forever.
+    env["GIT_TERMINAL_PROMPT"] = "0"
+
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            creationflags=_no_window_flags(),
+            env=env,
+        )
+    except Exception as e:
+        return -1, str(e)
+
+    chunks: "queue.Queue[Optional[bytes]]" = queue.Queue()
+
+    def _reader():
+        try:
+            while True:
+                data = proc.stdout.read1(4096)
+                if not data:
+                    break
+                chunks.put(data)
+        finally:
+            chunks.put(None)
+
+    threading.Thread(target=_reader, daemon=True).start()
+
+    lines: list[str] = []
+    buf = b""
+    last_activity = time.monotonic()
+    timed_out = False
+
+    def _flush(segment: bytes, terminator: bytes) -> None:
+        text = segment.decode("utf-8", errors="replace")
+        if not text.strip():
+            return
+        if terminator == b"\n":
+            lines.append(text)
+            _notify(on_line, text, False)
+        else:
+            _notify(on_line, text, True)
+
+    while True:
+        try:
+            data = chunks.get(timeout=1)
+        except queue.Empty:
+            if idle_timeout and time.monotonic() - last_activity > idle_timeout:
+                timed_out = True
+                proc.kill()
+                break
+            continue
+        if data is None:
+            break
+        last_activity = time.monotonic()
+        buf += data
+        while True:
+            match = re.search(rb"[\r\n]", buf)
+            if not match:
+                break
+            _flush(buf[:match.start()], buf[match.start():match.end()])
+            buf = buf[match.end():]
+
+    if buf:
+        _flush(buf, b"\n")
+
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+
+    output = "\n".join(lines).strip()
+    if timed_out:
+        msg = t("git_idle_timeout", seconds=idle_timeout)
+        _notify(on_line, msg, False)
+        return -1, f"{output}\n{msg}".strip()
+    return proc.returncode, output
 
 
 def has_git_repo(path: str) -> bool:
@@ -222,50 +348,92 @@ def do_fetch_and_merge(path: str) -> tuple[bool, str]:
     return True, t("git_fetch_merge_ok", msg=msg2)
 
 
-def _push(path: str) -> tuple[bool, str]:
+def _emit_files_to_push(path: str, on_line: LineCallback) -> None:
     """
-    Runs git push. If the current branch has no upstream configured yet
-    (typical on a repo's first push, or right after git init + remote add),
-    it automatically retries with --set-upstream origin <branch>.
+    Lists (live) the files that are about to be uploaded. Git's own push
+    progress only shows object counts, never file names, so this is what
+    tells the user *which* files are going up.
     """
-    code, out, err = _run(["git", "push"], path)
-    if code == 0:
-        return True, out or t("git_push_ok")
+    if on_line is None:
+        return
+    code, out, _ = _run(
+        ["git", "-c", "core.quotepath=off", "diff", "--name-status", "@{u}..HEAD"], path
+    )
+    if code != 0:
+        # No upstream yet (first push): fall back to the latest commit.
+        code, out, _ = _run(
+            ["git", "-c", "core.quotepath=off", "diff-tree", "--no-commit-id",
+             "--name-status", "-r", "--root", "HEAD"],
+            path,
+        )
+    if code != 0 or not out:
+        return
+    files = out.splitlines()
+    _notify(on_line, t("progress_files_header", n=len(files)))
+    for entry in files[:_MAX_LISTED_FILES]:
+        _notify(on_line, "  " + entry.replace("\t", "  "))
+    if len(files) > _MAX_LISTED_FILES:
+        _notify(on_line, t("progress_files_more", n=len(files) - _MAX_LISTED_FILES))
+    _notify(on_line, "")
 
-    if "has no upstream branch" in err or "set-upstream" in err:
+
+def _push(path: str, on_line: LineCallback = None) -> tuple[bool, str]:
+    """
+    Runs git push, streaming its progress to on_line. There is no total
+    time limit (only an inactivity limit, see _run_streaming).
+    If the current branch has no upstream configured yet (typical on a
+    repo's first push, or right after git init + remote add), it
+    automatically retries with --set-upstream origin <branch>.
+    """
+    _notify(on_line, t("progress_step_push"))
+    code, out = _run_streaming(["git", "push", "--progress"], path, on_line)
+    if code == 0:
+        return True, t("git_push_ok")
+
+    if "has no upstream branch" in out or "set-upstream" in out:
         branch_code, branch, _ = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"], path)
         branch = branch if branch_code == 0 and branch else "HEAD"
-        code2, out2, err2 = _run(["git", "push", "--set-upstream", "origin", branch], path)
+        code2, out2 = _run_streaming(
+            ["git", "push", "--progress", "--set-upstream", "origin", branch], path, on_line
+        )
         if code2 == 0:
-            return True, out2 or t("git_push_upstream_ok", branch=branch)
-        return False, err2 or out2 or t("git_push_upstream_err")
+            return True, t("git_push_upstream_ok", branch=branch)
+        return False, out2 or t("git_push_upstream_err")
 
-    return False, err or out or t("git_push_err")
+    return False, out or t("git_push_err")
 
 
-def do_add_commit_push(path: str, message: str = "") -> tuple[bool, str]:
-    """git add -A + git commit -m + git push."""
+def do_add_commit_push(path: str, message: str = "", on_line: LineCallback = None) -> tuple[bool, str]:
+    """
+    git add -A + git commit -m + git push.
+    on_line (optional) receives the live progress as (text, is_progress);
+    it is called from the calling thread, so it must be thread-safe.
+    """
     # Add
-    code, _, err = _run(["git", "add", "-A"], path)
+    _notify(on_line, t("progress_step_add"))
+    code, _, err = _run(["git", "add", "-A"], path, timeout=_ADD_COMMIT_TIMEOUT)
     if code != 0:
         return False, t("git_add_err", err=err)
 
     # Commit
+    _notify(on_line, t("progress_step_commit"))
     if not message:
         message = t("default_commit_message", datetime=datetime.now().strftime("%d/%m/%Y %H:%M"))
-    code2, out2, err2 = _run(["git", "commit", "-m", message], path)
+    code2, out2, err2 = _run(["git", "commit", "-m", message], path, timeout=_ADD_COMMIT_TIMEOUT)
     if code2 != 0:
         # Might be "nothing to commit" — there could still be local commits
         # that haven't been pushed, so push is attempted anyway.
         if "nothing to commit" in (out2 + err2).lower():
-            ok, msg = _push(path)
+            _emit_files_to_push(path, on_line)
+            ok, msg = _push(path, on_line)
             if ok:
                 return True, t("git_nothing_to_commit_pushed", msg=msg)
             return False, t("git_nothing_to_commit_push_failed", msg=msg)
         return False, t("git_commit_err", err=err2 or out2)
 
     # Push
-    ok, msg = _push(path)
+    _emit_files_to_push(path, on_line)
+    ok, msg = _push(path, on_line)
     if not ok:
         return False, t("git_push_after_commit_err", msg=msg)
 

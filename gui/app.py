@@ -47,7 +47,7 @@ from gui.theme import C, FONT_TITLE, FONT_LABEL, FONT_LABEL_B, FONT_SMALL
 from gui.theme_loader import AVAILABLE_THEMES
 from gui.dialogs import (
     OutputWindow, CommitDialog, MergeConflictDialog, InitRepoDialog,
-    FirstRunDialog, LauncherDialog, PurgeDialog,
+    FirstRunDialog, LauncherDialog, PurgeDialog, ProgressWindow,
 )
 from gui.project_card import ProjectCard
 from gui.windows import LogWindow, GhostFilesWindow, ChangesWindow, GitignoreWindow
@@ -351,11 +351,18 @@ class GitManagerApp(ctk.CTk):
             if card:
                 card.set_loading(True, "push")
 
+            # Live window: shows Git's progress line by line while pushing.
+            progress = ProgressWindow(self, t("op_title_commit_push"))
+
             def _worker():
-                ok, msg = git.do_add_commit_push(project["path"], message)
+                ok, msg = git.do_add_commit_push(
+                    project["path"], message, on_line=progress.push_line
+                )
                 if ok:
                     pm.record_push(project["id"])
-                self.after(0, lambda: self._after_operation(project["id"], t("op_title_commit_push"), msg, ok, "push"))
+                self.after(0, lambda: self._after_operation(
+                    project["id"], t("op_title_commit_push"), msg, ok, "push", progress=progress
+                ))
 
             threading.Thread(target=_worker, daemon=True).start()
 
@@ -429,7 +436,8 @@ class GitManagerApp(ctk.CTk):
         OutputWindow(self, t("op_title_init_repo"), msg, ok)
 
     # ── Post-operation ──
-    def _after_operation(self, project_id: str, title: str, msg: str, ok: bool, btn: str):
+    def _after_operation(self, project_id: str, title: str, msg: str, ok: bool, btn: str,
+                         progress: "ProgressWindow | None" = None):
         card = self._cards.get(project_id)
         if card:
             card.set_loading(False, btn)
@@ -438,7 +446,11 @@ class GitManagerApp(ctk.CTk):
             self._reload_card(project_id)
 
         self._set_status(t("status_op_done", title=title) if ok else t("status_op_failed", title=title))
-        OutputWindow(self, title, msg, ok)
+        if progress is not None and progress.is_open:
+            # The live window stays open and turns into the result window
+            progress.finish(ok, msg)
+        else:
+            OutputWindow(self, title, msg, ok)
 
     def _reload_card(self, project_id: str):
         """Refreshes the card's dates without destroying or moving it."""
